@@ -2,8 +2,14 @@
     fill: white;
 }
 
-.startpoint {
+.player {
     fill: green;
+}
+
+.clickregion {
+    stroke: green;
+    stroke-width: 4px;
+    fill: none;
 }
 
 .endpoint {
