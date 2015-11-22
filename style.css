@@ -1,6 +1,13 @@
 .maze {
     fill: white;
-    stroke: black;
+}
+
+.startpoint {
+    fill: green;
+}
+
+.endpoint {
+    fill: red;
 }
 
 svg {
