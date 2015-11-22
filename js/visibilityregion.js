@@ -44,6 +44,13 @@ function main() {
 
     var player = new Player(maze);
     player.draw();
+
+    $('#maze').click(function(e) {
+        var x = e.offsetX;
+        var y = e.offsetY;
+        player.move_to(x, y);
+        player.draw();
+    });
 }
 
 main();
