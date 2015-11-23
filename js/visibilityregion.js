@@ -18,9 +18,18 @@ function visibility_polygon(player, polygon) {
     var first_right = first_collision(player.x, player.y,
              (player.angle + player.radius_of_visibility / 2) % 360,
              polygon)
-    draw_line(player.x, player.y, first_left.x, first_left.y);
-    draw_line(player.x, player.y, first_right.x, first_right.y);
+
     var stack = [];
+
+    stack.push([player.x, player.y]);
+    stack.push([first_right.x, first_right.y]);
+    stack.push([first_right.end_x, first_right.end_y]);
+
+    // TODO: push and pop lots 
+
+    stack.push([first_left.start_x, first_left.start_y]);
+    stack.push([first_left.x, first_left.y]);
+
     var visibility = new Polygon('visibility', stack);
     return visibility;
 }
@@ -32,6 +41,7 @@ function visibility_polygon(player, polygon) {
 //  (0 degs is pointing up, 90 degs is pointing right)
 // This is pretty much a sweep from x,y in the direction of angle.
 function first_collision(x, y, angle, polygon) {
+    // Minus 90 because HTML5 orients angles vertical, and Math.cos expects horiz
     var angle_rads = (angle-90) * Math.PI / 180.0;
     // Hack - draw a long (but finite) "ray" from the player in
     // the direction of some specified angle to collide with all
@@ -52,6 +62,10 @@ function first_collision(x, y, angle, polygon) {
         // Hack - if the intersection is on the ray shot out from
         // the player AND the edge, it is a valid consideration.
         if (intersection.onLine1 && intersection.onLine2) {
+            intersection.start_x = prev[0];
+            intersection.start_y = prev[1];
+            intersection.end_x = next[0];
+            intersection.end_y = next[1];
             collisions.push(intersection);
         }
     }
@@ -173,7 +187,7 @@ function main() {
     $('#end').click(function(e) {
         console.log(":)");
     });
-    $('#maze').click(function(e) {
+    var onclick = function(e) {
         var x = e.offsetX;
         var y = e.offsetY;
         if (is_valid_click(player, x, y)) {
@@ -182,7 +196,9 @@ function main() {
         }
         var visibility = visibility_polygon(player, maze.polygon);
         visibility.draw();
-    });
+    };
+    $('#maze').click(onclick);
+    $('#visibility').click(onclick);
 }
 
 main();
