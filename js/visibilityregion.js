@@ -1,22 +1,129 @@
+function distance(x1, y1, x2, y2) {
+    return Math.sqrt(
+               Math.pow((x1-x2), 2) + 
+               Math.pow((y1-y2), 2)
+           );
+}
+
 function is_valid_click(player, x, y) {
-    player_x = player.loc[0];
-    player_y = player.loc[1];
-    dist = Math.sqrt(
-                    Math.pow((x-player_x), 2) + 
-                    Math.pow((y-player_y), 2)
-                );
+    var dist = distance(player.x, player.y, x, y)
     return dist < player.clickradius;
 }
 
 // Returns the visibility polygon of the player
 function visibility_polygon(player, polygon) {
-    polygon.points.forEach(function(elt) {
-        add_point(elt[0], elt[1]);
-    });
+    var first_left = first_collision(player.x, player.y,
+             (player.angle - player.radius_of_visibility / 2) % 360,
+             polygon)
+    var first_right = first_collision(player.x, player.y,
+             (player.angle + player.radius_of_visibility / 2) % 360,
+             polygon)
+    draw_line(player.x, player.y, first_left.x, first_left.y);
+    draw_line(player.x, player.y, first_right.x, first_right.y);
     var stack = [];
     var visibility = new Polygon('visibility', stack);
     return visibility;
 }
+
+// Returns (x,y) coordinates of the first intersection
+// with the polygon when shooting an infinite ray from (x,y) in 
+// direction <angle>.
+//  NOTE: In HTML5, angles are from the vertical axis and go CW
+//  (0 degs is pointing up, 90 degs is pointing right)
+// This is pretty much a sweep from x,y in the direction of angle.
+function first_collision(x, y, angle, polygon) {
+    var angle_rads = (angle-90) * Math.PI / 180.0;
+    // Hack - draw a long (but finite) "ray" from the player in
+    // the direction of some specified angle to collide with all
+    // the edges of the polygon.
+    var ray_endpt = {
+        x: x + 5000*Math.cos(angle_rads),
+        y: y + 5000*Math.sin(angle_rads)
+    };
+
+    var collisions = [];
+
+    function get_collision_with_ray(prev, next) {
+        var intersection = checkLineIntersection( // O(1)
+                x, y,
+                ray_endpt.x, ray_endpt.y,
+                prev[0], prev[1],
+                next[0], next[1]);
+        // Hack - if the intersection is on the ray shot out from
+        // the player AND the edge, it is a valid consideration.
+        if (intersection.onLine1 && intersection.onLine2) {
+            collisions.push(intersection);
+        }
+    }
+
+    var prev_pt = null;
+    // O(n)
+    polygon.points.forEach(function(point) {
+        if (prev_pt != null) {
+            get_collision_with_ray(prev_pt, point);
+        } else {
+            // first iteration - check polygon last edge
+            get_collision_with_ray(polygon.points[polygon.points.length-1], polygon.points[0]);
+        }
+        prev_pt = point;
+    });
+    var first = null;
+    // collisions invariant: onLine1==True, onLine2==True => x and y are both defined.
+    collisions.forEach(function(collision) {
+        if (first == null) {
+            first = collision;
+        } else {
+            if (distance(x, y, first.x, first.y) > 
+                distance(x, y, collision.x, collision.y)) {
+                    first = collision;
+                }
+        }
+    });
+    return first;
+}
+
+
+// If the lines intersect, the result contains the x and y
+// of the intersection (treating the lines as infinite) and booleans for whether
+// line segment 1 or line segment 2 contain the point.
+function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY, line2StartX, line2StartY, line2EndX, line2EndY) {
+    var denominator, a, b, numerator1, numerator2;
+    var result = {
+        x: null,
+        y: null,
+        onLine1: false,
+        onLine2: false
+    };
+    denominator = (((line2EndY - line2StartY) * (line1EndX - line1StartX)) -
+                   ((line2EndX - line2StartX) * (line1EndY - line1StartY)));
+    if (denominator == 0) {
+        // lines are parallel
+        return result;
+    }
+    a = line1StartY - line2StartY;
+    b = line1StartX - line2StartX;
+    numerator1 = ((line2EndX - line2StartX) * a) - ((line2EndY - line2StartY) * b);
+    numerator2 = ((line1EndX - line1StartX) * a) - ((line1EndY - line1StartY) * b);
+    a = numerator1 / denominator;
+    b = numerator2 / denominator;
+
+    // if we cast these lines infinitely in both directions, they intersect here:
+    result.x = line1StartX + (a * (line1EndX - line1StartX));
+    result.y = line1StartY + (a * (line1EndY - line1StartY));
+    
+    // if line1 is a segment and line2 is infinite, they intersect if:
+    if (a > 0 && a < 1) {
+        result.onLine1 = true;
+    }
+    // if line2 is a segment and line1 is infinite, they intersect if:
+    if (b > 0 && b < 1) {
+        result.onLine2 = true;
+    }
+    // if line1 and line2 are segments, they intersect if both of the above are true
+    return result;
+};
+
+
 
 function main() {
     var x_offset = -200;
@@ -61,8 +168,11 @@ function main() {
     maze.draw();
 
     var player = new Player(maze);
-    player.move_to(player.loc[0] + 7, player.loc[1] + 25);
+    player.move_to(player.x + 7, player.y + 25);
     player.draw();
+    $('#end').click(function(e) {
+        console.log(":)");
+    });
     $('#maze').click(function(e) {
         var x = e.offsetX;
         var y = e.offsetY;
@@ -70,21 +180,32 @@ function main() {
             player.move_to(x, y);
             player.draw();
         }
-        add_point(x, y);
+        var visibility = visibility_polygon(player, maze.polygon);
+        visibility.draw();
     });
-    var visibility = visibility_polygon(player, maze.polygon);
-    visibility.draw();
 }
 
 main();
 
 // For debugging
-function add_point(x, y) {
+function draw_point(x, y) {
     var shape = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     shape.setAttribute("cx", x);
     shape.setAttribute("cy", y);
     shape.setAttribute("r",  5);
     shape.setAttribute("fill", "pink");
+    $("svg").append(shape);
+}
+
+// For debugging
+function draw_line(x1, y1, x2, y2) {
+    var shape = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    shape.setAttribute("x1", x1);
+    shape.setAttribute("y1", y1);
+    shape.setAttribute("x2", x2);
+    shape.setAttribute("y2", y2);
+    shape.setAttribute("stroke", "pink");
+    shape.setAttribute("style", "stroke-width:2");
     $("svg").append(shape);
 }
 
