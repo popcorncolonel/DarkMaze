@@ -10,17 +10,20 @@
 <body>
 
 <svg width="800" height="600">
-  <polygon points="200,10 250,190 160,210 " class="maze" id="maze"/>
+  <polygon class="maze" id="maze"/>
+  <polygon class="visibility" id="visibility"/>
   <circle r="5" id="end" class="endpoint"/>
 
   <circle r="5" id="player" class="player"/>
   <path fill="none" id="clickregion" class="clickregion"/>
+  <circle fill="none" stroke="none" id="clickcircle" class="clickregion"/>
 </svg>
 
 </body>
 
 <script src="js/polygon.js"></script>
 <script src="js/maze.js"></script>
+<script src="js/player.js"></script>
 <script src="js/visibilityregion.js"></script>
 
 </html>
