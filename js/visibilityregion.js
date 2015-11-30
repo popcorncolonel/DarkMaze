@@ -43,9 +43,10 @@ function visibility_polygon(player, polygon) {
             in_range = true;
         }
         // TODO: continue here
-        if (x == first_left.end_x && y == first_left.end_y) {
+        if (x == first_left.start_x && y == first_left.start_y) {
             in_range = false;
         }
+        // in range => this is between first_left and first_right on the poly.
         if (in_range) {
             draw_point(x, y);
         }
