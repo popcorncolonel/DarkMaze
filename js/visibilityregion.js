@@ -11,21 +11,56 @@ function is_valid_click(player, x, y) {
 }
 
 // Returns the visibility polygon of the player
+// Assume the polygon is drawn in CCW direction
 function visibility_polygon(player, polygon) {
-    var first_left = first_collision(player.x, player.y,
-             (player.angle - player.radius_of_visibility / 2) % 360,
-             polygon)
+    var stack = [];
+
     var first_right = first_collision(player.x, player.y,
              (player.angle + player.radius_of_visibility / 2) % 360,
              polygon)
 
-    var stack = [];
+    var first_left = first_collision(player.x, player.y,
+             (player.angle - player.radius_of_visibility / 2) % 360,
+             polygon)
 
     stack.push([player.x, player.y]);
     stack.push([first_right.x, first_right.y]);
     stack.push([first_right.end_x, first_right.end_y]);
 
     // TODO: push and pop lots 
+    var i = 1;
+    var points = polygon.points.slice(); // slice for copy of array
+    points.push(points[0]);
+    var in_range = false;
+    var prev_point = points[0];
+    var first_loop = true;
+    while (true) {
+        var point = points[i];
+        var x = point[0];
+        var y = point[1];
+        if (x == first_right.end_x &&
+            y == first_right.end_y) {
+            in_range = true;
+        }
+        // TODO: continue here
+        if (x == first_left.end_x && y == first_left.end_y) {
+            in_range = false;
+        }
+        if (in_range) {
+            draw_point(x, y);
+        }
+
+        prev_point = point;
+        i = (i + 1) % points.length;
+        if (i == 0) {
+            if (first_loop) {
+                first_loop = false;
+            } else {
+                break;
+            }
+        }
+    }
+
 
     stack.push([first_left.start_x, first_left.start_y]);
     stack.push([first_left.x, first_left.y]);
@@ -176,18 +211,30 @@ function main() {
         [x_offset+542, y_offset+124],
         [x_offset+484, y_offset+32]
     ]);
+    /*
+    var maze = new Maze([
+        [x_offset+582, 84],
+        [x_offset+548, 65],
+        [x_offset+488, 47],
+        [x_offset+421, 47],
+        [x_offset+387, 85],
+        [x_offset+471, 188]
+    ]);
+    */
     maze.start = maze.points[maze.points.length-1];
-    maze.end = maze.points[14];
+    //maze.end = maze.points[14];
     maze.scale(1.35);
     maze.draw();
 
     var player = new Player(maze);
-    player.move_to(player.x + 7, player.y + 25);
+     player.move_to(player.x, player.y - 25);
+    // player.move_to(player.x + 7, player.y + 25);
     player.draw();
     $('#end').click(function(e) {
         console.log(":)");
     });
     var onclick = function(e) {
+        $('.drawn_point').remove();
         var x = e.offsetX;
         var y = e.offsetY;
         if (is_valid_click(player, x, y)) {
@@ -210,6 +257,7 @@ function draw_point(x, y) {
     shape.setAttribute("cy", y);
     shape.setAttribute("r",  5);
     shape.setAttribute("fill", "pink");
+    shape.setAttribute("class", "drawn_point");
     $("svg").append(shape);
 }
 
