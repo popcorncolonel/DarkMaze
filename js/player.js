@@ -1,7 +1,7 @@
 var Player = function(maze) {
     this.x = maze.start[0];
     this.y = maze.start[1];
-    this.clickradius = 100;
+    this.clickradius = 1000;
     this.radius_of_visibility = 90;
     this.angle = 165;
     var self = this;
@@ -73,6 +73,10 @@ function angle_between(prev_x, prev_y, x, y) {
     }
     if (dx == 0 && dy < 0) {
         new_angle += 180;
+    }
+
+    while (new_angle < 0.0) {
+        new_angle += 360.0;
     }
 
     return new_angle;

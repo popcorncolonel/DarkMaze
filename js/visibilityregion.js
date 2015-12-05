@@ -10,45 +10,116 @@ function is_valid_click(player, x, y) {
     return dist < player.clickradius;
 }
 
-// Returns the visibility polygon of the player
+function angle_with(player, point) {
+    var angle_with_pt = angle_between(player.x, player.y, point[0], point[1])
+    angle_with_pt -= player.angle;
+    while (angle_with_pt > 180.0) {
+        angle_with_pt -= 360.0;
+    }
+    return angle_with_pt;
+}
+
+function in_consideration(player, point) {
+    return true;
+    var angle_with_pt = angle_with(player, point);
+    return Math.abs(angle_with_pt) < player.radius_of_visibility / 2;
+}
+
+function right_turn(point1, point2, point3) {
+    var is_right = 
+           ((point2[0] - point1[0]) * (point3[1] - point1[1]) - 
+            (point2[1] - point1[1]) * (point3[0] - point1[0])) < 0;
+    return !is_right; // not because the y-coordinate is flipped. 
+}
+
+function collision_with_polygon(player, angle, polygon) {
+    return first_collision(player.x, player.y, angle, polygon);
+}
+
+function collision_with_edge(player, point_through, start, end) {
+    var x = player.x;
+    var y = player.y;
+
+    var angle = angle_between(player.x, player.y, point_through[0], point_through[1]);
+
+    // Minus 90 because HTML5 orients angles vertical, and Math.cos expects horiz
+    var angle_rads = (angle-90) * Math.PI / 180.0;
+    // Hack - draw a long (but finite) "ray" from the player in
+    // the direction of some specified angle to collide with all
+    // the edges of the polygon.
+    var ray_endpt = {
+        x: x + 5000*Math.cos(angle_rads),
+        y: y + 5000*Math.sin(angle_rads)
+    };
+
+    var intersection = checkLineIntersection( // O(1)
+            x, y,
+            ray_endpt.x, ray_endpt.y,
+            start[0], start[1],
+            end[0], end[1]);
+    return [intersection.x, intersection.y];
+}
+
 // Assume the polygon is drawn in CCW direction
 function visibility_polygon(player, polygon) {
     var stack = [];
 
-    var first_right = first_collision(player.x, player.y,
-             (player.angle + player.radius_of_visibility / 2) % 360,
-             polygon)
+    // first point to the right
+    var first_right = collision_with_polygon(player,
+             (player.angle + player.radius_of_visibility / 2) % 360, polygon);
+    draw_point(first_right.x, first_right.y, 'blue');
 
-    var first_left = first_collision(player.x, player.y,
-             (player.angle - player.radius_of_visibility / 2) % 360,
-             polygon)
+    // first point to the left (end of the visibility polygon
+    var first_left = collision_with_polygon(player,
+             (player.angle - player.radius_of_visibility / 2) % 360, polygon);
+    draw_point(first_left.x, first_left.y, 'orange');
 
     stack.push([player.x, player.y]);
     stack.push([first_right.x, first_right.y]);
     stack.push([first_right.end_x, first_right.end_y]);
 
-    // TODO: push and pop lots 
     var i = 1;
     var points = polygon.points.slice(); // slice for copy of array
     points.push(points[0]);
     var in_range = false;
+    // prev_point is the previous point on the polygon traversal (not the stack)
     var prev_point = points[0];
-    var first_loop = true;
+    // May walk around the polygon twice (if endpoint comes before startpoint)
+    var first_loop = true; 
     while (true) {
         var point = points[i];
         var x = point[0];
         var y = point[1];
         if (x == first_right.end_x &&
             y == first_right.end_y) {
+            prev_point = [first_right.x, first_right.y];
             in_range = true;
         }
-        // TODO: continue here
-        if (x == first_left.start_x && y == first_left.start_y) {
+        if (x == first_left.end_x && y == first_left.end_y) {
             in_range = false;
         }
-        // in range => this is between first_left and first_right on the poly.
+
+        // in range => this is between first_right and first_left on the poly.
         if (in_range) {
-            draw_point(x, y);
+            if (in_consideration(player, point)) {
+                if (!right_turn([player.x, player.y],
+                                 stack[stack.length-1],
+                                 [x, y])) {
+                    stack.push([x, y]);
+                    // if we just emerged from a pocket
+                    if (prev_point != stack[stack.length-2]) {
+                        var start = prev_point;
+                        var end = [x, y];
+                        var pocket_emergence_pt = collision_with_edge(player, stack[stack.length-2], start, end);
+                        stack.pop();
+                        stack.push(pocket_emergence_pt);
+                        stack.push([x, y]);
+                    } else {
+                        console.log('yey');
+                    }
+                }
+                draw_point(x, y);
+            }
         }
 
         prev_point = point;
@@ -126,7 +197,7 @@ function first_collision(x, y, angle, polygon) {
             if (distance(x, y, first.x, first.y) > 
                 distance(x, y, collision.x, collision.y)) {
                     first = collision;
-                }
+            }
         }
     });
     return first;
@@ -136,7 +207,8 @@ function first_collision(x, y, angle, polygon) {
 // If the lines intersect, the result contains the x and y
 // of the intersection (treating the lines as infinite) and booleans for whether
 // line segment 1 or line segment 2 contain the point.
-function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY, line2StartX, line2StartY, line2EndX, line2EndY) {
+function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
+                               line2StartX, line2StartY, line2EndX, line2EndY) {
     var denominator, a, b, numerator1, numerator2;
     var result = {
         x: null,
@@ -225,7 +297,7 @@ function main() {
     maze.start = maze.points[maze.points.length-1];
     //maze.end = maze.points[14];
     maze.scale(1.35);
-    maze.draw();
+    maze.draw(); 
 
     var player = new Player(maze);
      player.move_to(player.x, player.y - 25);
@@ -245,6 +317,7 @@ function main() {
         var visibility = visibility_polygon(player, maze.polygon);
         visibility.draw();
     };
+    angle_between 
     $('#maze').click(onclick);
     $('#visibility').click(onclick);
 }
@@ -252,12 +325,13 @@ function main() {
 main();
 
 // For debugging
-function draw_point(x, y) {
+function draw_point(x, y, color) {
+    color = color || "pink";
     var shape = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     shape.setAttribute("cx", x);
     shape.setAttribute("cy", y);
     shape.setAttribute("r",  5);
-    shape.setAttribute("fill", "pink");
+    shape.setAttribute("fill", color);
     shape.setAttribute("class", "drawn_point");
     $("svg").append(shape);
 }
