@@ -24,7 +24,7 @@ function angle_with(player, point) {
 
 function in_consideration(player, point) {
     var angle_with_pt = angle_with(player, point);
-    return Math.abs(angle_with_pt) < player.radius_of_visibility / 2;
+    return Math.abs(angle_with_pt) <= player.radius_of_visibility / 2;
 }
 
 function right_turn(point1, point2, point3) {
@@ -79,12 +79,6 @@ function collision_with_edge(player, point_through, edge) {
             ray_endpt.x, ray_endpt.y,
             edge.start.x, edge.start.y,
             edge.end.x, edge.end.y);
-    if (intersection.x == null) {
-        console.log('point through: ' + point_through);
-        console.log('start: ' + edge.start);
-        console.log('end: ' + edge.end);
-        console.log('\n');
-    }
     return new Point(intersection.x, intersection.y);
 }
 
@@ -100,11 +94,9 @@ function visibility_polygon(player, polygon) {
     // first point to the left (end of the visibility polygon
     var first_left = collision_with_polygon(player,
              (player.angle - player.radius_of_visibility / 2) % 360, polygon);
-    draw_point(first_left.x, first_left.y, 'orange');
 
     stack.push(player.point);
     stack.push(new Point(first_right.x, first_right.y));
-    //stack.push([first_right.end_x, first_right.end_y]);
 
     var i = 1;
     var points = polygon.points.slice(); // slice for copy of array
@@ -115,7 +107,7 @@ function visibility_polygon(player, polygon) {
     // May walk around the polygon twice (if endpoint comes before startpoint)
     var first_loop = true; 
 
-    function progress_algorithm(point) {
+    function progress_algorithm(point, last_iter) {
         if (point.x == first_right.end_x &&
             point.y == first_right.end_y) {
             prev_point = new Point(first_right.x, first_right.y);
@@ -127,12 +119,13 @@ function visibility_polygon(player, polygon) {
 
         // in range => this is between first_right and first_left on the poly.
         if (in_range) {
-            if (in_consideration(player, point)) {
+            if (last_iter || in_consideration(player, point)) {
                 var pivot_pt = stack[stack.length-1];
                 if (!right_turn(player.point,
                                 stack[stack.length-1],
                                 point)) {
-                    stack.push(new Point(x, y));
+                    stack.push(point);
+
                     // This happens if the 2 most recent valid points weren't both polygon vertices in order
                     if (!are_equal_points(prev_point, pivot_pt)) {
                         // if we just emerged from a pocket
@@ -142,25 +135,20 @@ function visibility_polygon(player, polygon) {
                             add_window_point(player, stack, pivot_pt,
                                              new Edge(prev_point, point));
                         } 
-                        /*
-                        else {
-                            add_window_point(player, stack, point,
-                                             new Edge(stack[stack.length-2], prev_point));
-                        }
-                        */
                     }
                     draw_point(point.x, point.y);
                 }
-                draw_point(point.x, point.y, 'red');
             }
         }
     }
 
     while (true) {
         var point = points[i];
-        progress_algorithm(point)
+        progress_algorithm(point);
 
-        prev_point = point;
+        if (in_range) {
+            prev_point = point;
+        }
         i = (i + 1) % points.length;
         if (i == 0) {
             if (first_loop) {
@@ -171,9 +159,10 @@ function visibility_polygon(player, polygon) {
         }
     }
 
-    //stack.push([first_left.start_x, first_left.start_y]);
     var last_point = new Point(first_left.x, first_left.y);
-    progress_algorithm(last_point);
+    in_range = true;
+    progress_algorithm(last_point, true);
+    draw_point(last_point.x, last_point.y, 'orange');
     stack.push(last_point);
 
     var points = [];
@@ -343,8 +332,8 @@ function main() {
     maze.draw(); 
 
     var player = new Player(maze);
-     player.move_to(player.x, player.y - 25);
-    // player.move_to(player.x + 7, player.y + 25);
+    //player.move_to(player.x, player.y - 25);
+    player.move_to(player.x + 7, player.y + 25);
     player.draw();
     $('#end').click(function(e) {
         //c-onsole.log(":)");
@@ -360,7 +349,8 @@ function main() {
         var visibility = visibility_polygon(player, maze.polygon);
         visibility.draw();
     };
-    angle_between 
+    var visibility = visibility_polygon(player, maze.polygon);
+    visibility.draw();
     $('#maze').click(onclick);
     $('#visibility').click(onclick);
 }
