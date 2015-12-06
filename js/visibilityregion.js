@@ -11,24 +11,26 @@ function is_valid_click(player, x, y) {
 }
 
 function angle_with(player, point) {
-    var angle_with_pt = angle_between(player.x, player.y, point[0], point[1])
+    var angle_with_pt = angle_between(player.x, player.y, point.x, point.y)
     angle_with_pt -= player.angle;
     while (angle_with_pt > 180.0) {
         angle_with_pt -= 360.0;
+    }
+    while (angle_with_pt < -180.0) {
+        angle_with_pt += 360.0;
     }
     return angle_with_pt;
 }
 
 function in_consideration(player, point) {
-    return true;
     var angle_with_pt = angle_with(player, point);
     return Math.abs(angle_with_pt) < player.radius_of_visibility / 2;
 }
 
 function right_turn(point1, point2, point3) {
     var is_right = 
-           ((point2[0] - point1[0]) * (point3[1] - point1[1]) - 
-            (point2[1] - point1[1]) * (point3[0] - point1[0])) < 0;
+           ((point2.x - point1.x) * (point3.y - point1.y) - 
+            (point2.y - point1.y) * (point3.x - point1.x)) < 0;
     return !is_right; // not because the y-coordinate is flipped. 
 }
 
@@ -36,11 +38,31 @@ function collision_with_polygon(player, angle, polygon) {
     return first_collision(player.x, player.y, angle, polygon);
 }
 
-function collision_with_edge(player, point_through, start, end) {
+function abs_diff(float1, float2) {
+    return Math.abs(float1 - float2);
+}
+
+function are_equal_points(point1, point2) {
+    if (abs_diff(point1.x, point2.x) < 0.00001) {
+        if (abs_diff(point1.y, point2.y) < 0.00001) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function add_window_point(player, stack, point_through, edge) {
+    var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
+    var popped = stack.pop();
+    stack.push(pocket_emergence_pt);
+    stack.push(popped);
+}
+
+function collision_with_edge(player, point_through, edge) {
     var x = player.x;
     var y = player.y;
 
-    var angle = angle_between(player.x, player.y, point_through[0], point_through[1]);
+    var angle = angle_between(player.x, player.y, point_through.x, point_through.y);
 
     // Minus 90 because HTML5 orients angles vertical, and Math.cos expects horiz
     var angle_rads = (angle-90) * Math.PI / 180.0;
@@ -55,9 +77,15 @@ function collision_with_edge(player, point_through, start, end) {
     var intersection = checkLineIntersection( // O(1)
             x, y,
             ray_endpt.x, ray_endpt.y,
-            start[0], start[1],
-            end[0], end[1]);
-    return [intersection.x, intersection.y];
+            edge.start.x, edge.start.y,
+            edge.end.x, edge.end.y);
+    if (intersection.x == null) {
+        console.log('point through: ' + point_through);
+        console.log('start: ' + edge.start);
+        console.log('end: ' + edge.end);
+        console.log('\n');
+    }
+    return new Point(intersection.x, intersection.y);
 }
 
 // Assume the polygon is drawn in CCW direction
@@ -74,9 +102,9 @@ function visibility_polygon(player, polygon) {
              (player.angle - player.radius_of_visibility / 2) % 360, polygon);
     draw_point(first_left.x, first_left.y, 'orange');
 
-    stack.push([player.x, player.y]);
-    stack.push([first_right.x, first_right.y]);
-    stack.push([first_right.end_x, first_right.end_y]);
+    stack.push(player.point);
+    stack.push(new Point(first_right.x, first_right.y));
+    //stack.push([first_right.end_x, first_right.end_y]);
 
     var i = 1;
     var points = polygon.points.slice(); // slice for copy of array
@@ -86,41 +114,51 @@ function visibility_polygon(player, polygon) {
     var prev_point = points[0];
     // May walk around the polygon twice (if endpoint comes before startpoint)
     var first_loop = true; 
-    while (true) {
-        var point = points[i];
-        var x = point[0];
-        var y = point[1];
-        if (x == first_right.end_x &&
-            y == first_right.end_y) {
-            prev_point = [first_right.x, first_right.y];
+
+    function progress_algorithm(point) {
+        if (point.x == first_right.end_x &&
+            point.y == first_right.end_y) {
+            prev_point = new Point(first_right.x, first_right.y);
             in_range = true;
         }
-        if (x == first_left.end_x && y == first_left.end_y) {
+        if (point.x == first_left.end_x && point.y == first_left.end_y) {
             in_range = false;
         }
 
         // in range => this is between first_right and first_left on the poly.
         if (in_range) {
             if (in_consideration(player, point)) {
-                if (!right_turn([player.x, player.y],
-                                 stack[stack.length-1],
-                                 [x, y])) {
-                    stack.push([x, y]);
-                    // if we just emerged from a pocket
-                    if (prev_point != stack[stack.length-2]) {
-                        var start = prev_point;
-                        var end = [x, y];
-                        var pocket_emergence_pt = collision_with_edge(player, stack[stack.length-2], start, end);
-                        stack.pop();
-                        stack.push(pocket_emergence_pt);
-                        stack.push([x, y]);
-                    } else {
-                        console.log('yey');
+                var pivot_pt = stack[stack.length-1];
+                if (!right_turn(player.point,
+                                stack[stack.length-1],
+                                point)) {
+                    stack.push(new Point(x, y));
+                    // This happens if the 2 most recent valid points weren't both polygon vertices in order
+                    if (!are_equal_points(prev_point, pivot_pt)) {
+                        // if we just emerged from a pocket
+                        if (right_turn(player.point,
+                                       pivot_pt,
+                                       prev_point)) {
+                            add_window_point(player, stack, pivot_pt,
+                                             new Edge(prev_point, point));
+                        } 
+                        /*
+                        else {
+                            add_window_point(player, stack, point,
+                                             new Edge(stack[stack.length-2], prev_point));
+                        }
+                        */
                     }
+                    draw_point(point.x, point.y);
                 }
-                draw_point(x, y);
+                draw_point(point.x, point.y, 'red');
             }
         }
+    }
+
+    while (true) {
+        var point = points[i];
+        progress_algorithm(point)
 
         prev_point = point;
         i = (i + 1) % points.length;
@@ -133,11 +171,16 @@ function visibility_polygon(player, polygon) {
         }
     }
 
+    //stack.push([first_left.start_x, first_left.start_y]);
+    var last_point = new Point(first_left.x, first_left.y);
+    progress_algorithm(last_point);
+    stack.push(last_point);
 
-    stack.push([first_left.start_x, first_left.start_y]);
-    stack.push([first_left.x, first_left.y]);
-
-    var visibility = new Polygon('visibility', stack);
+    var points = [];
+    stack.forEach(function(point) {
+        points.push([point.x, point.y]);
+    });
+    var visibility = new Polygon('visibility', points);
     return visibility;
 }
 
@@ -164,15 +207,15 @@ function first_collision(x, y, angle, polygon) {
         var intersection = checkLineIntersection( // O(1)
                 x, y,
                 ray_endpt.x, ray_endpt.y,
-                prev[0], prev[1],
-                next[0], next[1]);
+                prev.x, prev.y,
+                next.x, next.y);
         // Hack - if the intersection is on the ray shot out from
         // the player AND the edge, it is a valid consideration.
         if (intersection.onLine1 && intersection.onLine2) {
-            intersection.start_x = prev[0];
-            intersection.start_y = prev[1];
-            intersection.end_x = next[0];
-            intersection.end_y = next[1];
+            intersection.start_x = prev.x;
+            intersection.start_y = prev.y;
+            intersection.end_x = next.x;
+            intersection.end_y = next.y;
             collisions.push(intersection);
         }
     }
@@ -304,7 +347,7 @@ function main() {
     // player.move_to(player.x + 7, player.y + 25);
     player.draw();
     $('#end').click(function(e) {
-        console.log(":)");
+        //c-onsole.log(":)");
     });
     var onclick = function(e) {
         $('.drawn_point').remove();

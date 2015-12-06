@@ -1,6 +1,7 @@
 var Player = function(maze) {
     this.x = maze.start[0];
     this.y = maze.start[1];
+    this.point = new Point(this.x, this.y);
     this.clickradius = 1000;
     this.radius_of_visibility = 90;
     this.angle = 165;
@@ -32,6 +33,7 @@ var Player = function(maze) {
         self.angle = new_angle;
         self.x = x;
         self.y = y;
+        self.point = new Point(x, y);
     }
 }
 
