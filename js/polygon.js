@@ -33,5 +33,15 @@ var Polygon = function(id, points) {
         });
         $('#'+self.id).attr('points', points_str);
     };
+
+    this.edge_starting_with = function(point) {
+        var correct_edge = null;
+        self.edges.forEach(function(edge) {
+            if (are_equal_points(point, edge.start)) {
+                correct_edge = edge;
+            }
+        });
+        return correct_edge;
+    };
 }
 

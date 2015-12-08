@@ -55,7 +55,18 @@ function add_window_point(player, stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
     var popped = stack.pop();
     stack.push(pocket_emergence_pt);
+    console.log(edge);
+    console.log(pocket_emergence_pt);
     stack.push(popped);
+}
+
+function is_visibile(player, edge, point) {
+    var intersection = checkLineIntersection(
+            player.x, player.y,
+            point.x, point.y,
+            edge.start.x, edge.start.y,
+            edge.end.x, edge.end.y);
+    return intersection.onLine1 && intersection.onLine2;
 }
 
 function collision_with_edge(player, point_through, edge) {
@@ -106,6 +117,41 @@ function visibility_polygon(player, polygon) {
     var prev_point = points[0];
     // May walk around the polygon twice (if endpoint comes before startpoint)
     var first_loop = true; 
+    var next_valid_point = points[1];
+
+    function add_window_points(point, pivot_pt) {
+        // There are 2 kinds of window points that need to be added: 
+        //   1) Where the polygon traversal just emerged from a pocket, and we need to
+        //      the edge satisfying: s.start is not visible and s.end is visible
+        //   2) When the polygon traversal just backtracked and we need to add an edge 
+        //      that goes through the end of the downwards backtrack and collides with another
+        //      polygon edge
+
+        // Case 1 - Traversal just emerged from a pocket
+        if (!are_equal_points(prev_point, pivot_pt)) {
+            if (right_turn(player.point,
+                           pivot_pt,
+                           prev_point))
+            {
+                add_window_point(player, stack, pivot_pt,
+                                 new Edge(prev_point, point));
+            } 
+        }
+    }
+
+    function backtrack() {
+        var last_added_edge = new Edge(stack[stack.length-1], stack[stack.length-2]);
+        var just_removed = null;
+        while (stack.length > 3 && !is_visibile(player,
+                            last_added_edge,
+                            stack[stack.length-3])) {
+              just_removed = stack.splice(stack.length-3, 1); // Remove the third to last element
+              just_removed = just_removed[0]; // splice returns a list
+              console.log(just_removed);
+        }
+        console.log('\n');
+        // TODO: add window through stack[stack.length-1] colliding with the edge from the point we just removed
+    }
 
     function progress_algorithm(point, last_iter) {
         if (point.x == first_right.end_x &&
@@ -120,30 +166,25 @@ function visibility_polygon(player, polygon) {
         // in range => this is between first_right and first_left on the poly.
         if (in_range) {
             if (last_iter || in_consideration(player, point)) {
+                // pivot_pt is the second-last added point
                 var pivot_pt = stack[stack.length-1];
                 if (!right_turn(player.point,
                                 stack[stack.length-1],
                                 point)) {
+                    draw_point(point.x, point.y);
                     stack.push(point);
 
-                    // This happens if the 2 most recent valid points weren't both polygon vertices in order
-                    if (!are_equal_points(prev_point, pivot_pt)) {
-                        // if we just emerged from a pocket
-                        if (right_turn(player.point,
-                                       pivot_pt,
-                                       prev_point)) {
-                            add_window_point(player, stack, pivot_pt,
-                                             new Edge(prev_point, point));
-                        } 
-                    }
-                    draw_point(point.x, point.y);
+                    add_window_points(point, pivot_pt);
+                    //backtrack();
+                    next_valid_point = points[(i+1) % points.length];
                 }
+                else {draw_point(point.x, point.y, 'red');}
             }
         }
     }
 
     while (true) {
-        var point = points[i];
+        point = points[i];
         progress_algorithm(point);
 
         if (in_range) {
