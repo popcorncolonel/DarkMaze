@@ -1,6 +1,11 @@
 var Point = function(x, y) {
     this.x = x;
     this.y = y;
+    var self = this;
+    this.draw = function(color) {
+        color = color || 'pink';
+        draw_point(self.x, self.y, color);
+    }
 }
 Point.prototype.toString = function() {
     return "("+this.x+", "+this.y+")";
@@ -9,6 +14,11 @@ Point.prototype.toString = function() {
 var Edge = function(start, end) {
     this.start = start;
     this.end = end;
+    var self = this;
+    this.draw = function(color) {
+        color = color || 'pink';
+        draw_edge(self, color);
+    }
 }
 Edge.prototype.toString = function() {
     return "["+this.start.toString()+", "+this.end.toString()+"]";

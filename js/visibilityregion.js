@@ -64,21 +64,29 @@ function are_equal_points(point1, point2) {
 
 function add_window_point(player, stack, edge_stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
-    var popped_e = edge_stack.pop();
-    var popped = stack.pop();
+    var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
 
-    // TODO: push onto edge stack
+    edge_stack.push(pocket_edge);
     stack.push(pocket_emergence_pt);
-    console.log('sh');
-
-    edge_stack.push(popped_e);
-    stack.push(popped);
 }
+
+function upwards_backtrack(player, edge) {
+    var angle_diff = angle_between(edge.start.x, edge.start.y,
+                                   edge.end.x, edge.end.y);
+    return angle_diff < 90;
+}
+
 
 function is_visibile(player, edge, point) {
     if (are_equal_points(point, edge.start)) {
         // ehhhhhh this will probably cause errors.
-        return false;
+        if (upwards_backtrack(player, edge)) {
+            return true;
+        }
+        else {
+            return false;
+        }
+        console.log('heads up - maybe cause errors (point == edge.start)...');
     }
     var intersection = checkLineIntersection(
             player.x, player.y,
@@ -114,7 +122,10 @@ function collision_with_edge(player, point_through, edge) {
 
 // Assume the polygon is drawn in CCW direction
 function visibility_polygon(player, polygon) {
-    var edge_stack = []; // TODO: when a point is pushed on the stack, the edge (starting at that point, ending at the NEXT point in the iteration) is pushed on the edge stack. At all points, stack.length == edge_stack.length.
+    // When a point is pushed on the (point) stack, the edge (starting at that point,
+    // ending at the NEXT point in the iteration) is pushed on the edge stack.
+    //   Invariant: stack.length == edge_stack.length.
+    var edge_stack = []; 
     var stack = [];
 
     // first point to the right
@@ -137,20 +148,16 @@ function visibility_polygon(player, polygon) {
 
     var i = 1;
     var points = polygon.points.slice(); // slice for copy of array
-    points.push(points[0]);
     var in_range = false;
     // prev_point is the previous point on the polygon traversal (not the stack)
     var prev_point = points[0];
     // May walk around the polygon twice (if endpoint comes before startpoint)
-    var first_loop = true; 
-    var next_valid_point = points[1];
-
     function add_window_points(point, pivot_pt) {
         // There are 2 kinds of window points that need to be added: 
         //   1) Where the polygon traversal just emerged from a pocket, and we need to
         //      the edge satisfying: s.start is not visible and s.end is visible
-        //   2) When the polygon traversal just backtracked and we need to add an edge 
-        //      that goes through the end of the downwards backtrack and collides with another
+        //   2) When the polygon traversal just back_tracked and we need to add an edge 
+        //      that goes through the end of the downwards back-track and collides with another
         //      polygon edge
 
         // Case 1 - Traversal just emerged from a pocket
@@ -165,110 +172,97 @@ function visibility_polygon(player, polygon) {
         }
     }
 
-    function upwards_backtrack(player, edge) {
-        var angle_diff = angle_between(edge.start.x, edge.start.y,
-                                       edge.end.x, edge.end.y);
-        return angle_diff < 90;
-    }
-
     function backtrack(last_added_edge) {
-        var point_through = null;
         while (stack.length > 2 && !is_visibile(player,
                             last_added_edge,
-                            stack[stack.length-2])) {
-            point_through = stack.splice(stack.length-2, 1); // Remove the third to last element
-            point_through = point_through[0]; // splice returns a list
+                            stack[stack.length-1])) {
+            edge_stack.pop();
+            stack.pop();
+            console.log('i deleted stuff');
         }
         console.log('backtracking.....');
-        var edge = edge_stack[stack.length-2];
-        //point_through = edge.end;
-        /* The edge to add the point on will be the edge the most recently visible point is on.
-         */
+        var edge = edge_stack[stack.length-1];
 
-        //add_window_point(player, stack, edge_stack, last_added_edge.end,
-        //                 new Edge(stack[stack.length-2], just_removed));
-        draw_edge(edge);
         var upwards = upwards_backtrack(player, last_added_edge);
         if (!upwards) {
-            add_window_point(player, stack, edge_stack, last_added_edge.end, edge);
+            add_window_point(player, stack, edge_stack,
+                             last_added_edge.end, edge);
         }
     }
 
     function progress_algorithm(point) {
+        var done_with_algo = false;
         if (point.x == first_right.end_x &&
             point.y == first_right.end_y) {
             prev_point = new Point(first_right.x, first_right.y);
             in_range = true;
         }
-        if (point.x == first_left.end_x && point.y == first_left.end_y) {
-            // TODO: may be an off-by-1 error here with the first point of the polygon.
-            // We can stop the looping - we've gone from in_range to not.
-            first_loop = false; 
-            in_range = false;
+        if (in_range && point.x == first_left.end_x && point.y == first_left.end_y) {
+            //in_range = false;
 
             // Try to add a window one last time
             var pivot_pt = stack[stack.length-1];
-            draw_point(point.x, point.y, 'lightgreen');  
             if (right_turn(player.point, pivot_pt, prev_point) &&
                !right_turn(player.point, pivot_pt, point)) {
                 var last_edge = new Edge(prev_point, point);
-                stack.push('temp'); // hack - add_window_point inserts in the second to last position
                 add_window_point(player, stack, edge_stack, pivot_pt,
                                  last_edge);
-                stack.pop();
             }
+            done_with_algo = true; // say the algorithm is done.
+            return done_with_algo;
         }
 
         // in range => this is between first_right and first_left on the poly.
         if (in_range) {
             if (in_consideration(player, point)) {
-                // pivot_pt is the second-last added point
+                var dont_push = false;
+                // pivot_pt is the last added point
                 var pivot_pt = stack[stack.length-1];
-                stack.push(point);
-                edge_stack.push(new Edge(point, points[(i+1) % points.length]));
 
-                var last_added_edge = new Edge(prev_point, point);
-                // If right turn, backtrack (could be covering up previous points)
+                var last_added_edge = new Edge(pivot_pt, point);
+
                 if (!right_turn(player.point, pivot_pt, point)) {
                     draw_point(point.x, point.y);
 
                     add_window_points(point, pivot_pt);
-
-                    next_valid_point = points[(i+1) % points.length];
+                    pivot_pt = stack[stack.length-1];
+                    last_added_edge = new Edge(pivot_pt, point);
                 } else {
                     var upwards = upwards_backtrack(player, last_added_edge);
-                    if (upwards) { // Want to ignore upwards backtracks
-                        stack.pop();
-                        edge_stack.pop();
+                    if (upwards) { // Want to ignore upwards back-tracks
+                        dont_push = true;
+                    } else {
+                        console.log('back-tracking b/c not right turn and downwards back-track');
+                        backtrack(last_added_edge);
                     }
-                    backtrack(last_added_edge);
                 }
-                // If prev_point != pivot_pt, backtrack (it won't always do something)
+                // If prev_point != pivot_pt, try to back_track (it won't always do something)
                 if (!are_equal_points(prev_point, pivot_pt))
                 {
-                        draw_point(point.x, point.y, 'cyan');
-                        backtrack(last_added_edge);
-                    if (!are_equal_points(new Point(first_right.x, first_right.y),
-                                          pivot_pt)) {
-                        // TODO: Why did I write this?
-                    }
+                    backtrack(last_added_edge);
+                }
+
+                if (!dont_push) {
+                    stack.push(point);
+                    edge_stack.push(new Edge(point, points[(i+1) % points.length]));
                 }
             }
         }
+        else {
+            // TODO: off-by-1 error with going out of range before getting to the blue point
+            draw_point(point.x, point.y, 'cyan');
+        }
+        return done_with_algo;
     }
 
     while (true) {
         point = points[i];
-        progress_algorithm(point);
+        result = progress_algorithm(point);
         prev_point = point;
 
         i = (i + 1) % points.length;
-        if (i == 0) {
-            if (first_loop) {
-                first_loop = false;
-            } else {
-                break;
-            }
+        if (result == true) {
+            break;
         }
     }
 
@@ -279,15 +273,6 @@ function visibility_polygon(player, polygon) {
     draw_point(last_point.x, last_point.y, 'orange');
     stack.push(last_point);
     edge_stack.push(new Edge(last_point, player.point));
-
-/*
-    console.log(stack.map(function(p) {
-        return p.toString();
-    }));
-    console.log(edge_stack.map(function(e) {
-        return e.toString();
-    }));
-*/
 
     var points = [];
     stack.forEach(function(point) {
@@ -461,13 +446,15 @@ function main() {
     maze.draw(); 
 
     var player = new Player(maze);
-    player.move_to(player.x, player.y - 25);
+    player.move_to(player.x-30, player.y - 205);
+    player.angle = 182;
     player.draw();
     $('#end').click(function(e) {
         alert(":)");
     });
     var onclick = function(e) {
         $('.drawn_point').remove();
+        $('line').remove();
         var x = e.offsetX;
         var y = e.offsetY;
         if (is_valid_click(player, x, y)) {
@@ -505,8 +492,8 @@ function draw_edge(edge, color) {
     shape.setAttribute("y1", edge.start.y);
     shape.setAttribute("x2", edge.end.x);
     shape.setAttribute("y2", edge.end.y);
-    shape.setAttribute("style", "stroke-width:2");
-    shape.setAttribute("fill", color);
+    shape.setAttribute("style", "stroke-width:3");
+    shape.setAttribute("stroke", color);
     $("svg").append(shape);
 }
 
