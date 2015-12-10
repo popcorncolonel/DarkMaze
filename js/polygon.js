@@ -2,10 +2,16 @@ var Point = function(x, y) {
     this.x = x;
     this.y = y;
 }
+Point.prototype.toString = function() {
+    return "("+this.x+", "+this.y+")";
+}
 
 var Edge = function(start, end) {
     this.start = start;
     this.end = end;
+}
+Edge.prototype.toString = function() {
+    return "["+this.start.toString()+", "+this.end.toString()+"]";
 }
 
 var Polygon = function(id, points) {
@@ -34,10 +40,10 @@ var Polygon = function(id, points) {
         $('#'+self.id).attr('points', points_str);
     };
 
-    this.edge_starting_with = function(point) {
+    this.edge_with_this_point = function(point) {
         var correct_edge = null;
         self.edges.forEach(function(edge) {
-            if (are_equal_points(point, edge.start)) {
+            if (is_on_segment(point, edge)) {
                 correct_edge = edge;
             }
         });
