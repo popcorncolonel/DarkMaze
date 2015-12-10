@@ -173,15 +173,25 @@ function visibility_polygon(player, polygon) {
     }
 
     function backtrack(last_added_edge) {
+        var deleted_edge = null;
         while (stack.length > 2 && !is_visibile(player,
                             last_added_edge,
                             stack[stack.length-1])) {
-            edge_stack.pop();
+            deleted_edge = edge_stack.pop();
             stack.pop();
+            deleted_edge;
             console.log('i deleted stuff');
         }
         console.log('backtracking.....');
-        var edge = edge_stack[stack.length-1];
+        var edge;
+        edge = edge_stack[stack.length-1];
+        /*
+        if (!deleted_edge) {
+        }
+        else {
+            edge = deleted_edge;
+        }
+        */
 
         var upwards = upwards_backtrack(player, last_added_edge);
         if (!upwards) {
@@ -225,6 +235,8 @@ function visibility_polygon(player, polygon) {
                     draw_point(point.x, point.y);
 
                     add_window_points(point, pivot_pt);
+
+                    // update the pivot pt and the last added edge
                     pivot_pt = stack[stack.length-1];
                     last_added_edge = new Edge(pivot_pt, point);
                 } else {
@@ -239,6 +251,8 @@ function visibility_polygon(player, polygon) {
                 // If prev_point != pivot_pt, try to back_track (it won't always do something)
                 if (!are_equal_points(prev_point, pivot_pt))
                 {
+                    last_added_edge = new Edge(prev_point, point);
+                    console.log('backtracking b/c prev_pt != pivot');
                     backtrack(last_added_edge);
                 }
 
