@@ -23,6 +23,7 @@ function angle_with(player, point) {
 }
 
 function in_consideration(player, point) {
+    return true;
     var angle_with_pt = angle_with(player, point);
     return Math.abs(angle_with_pt) <= player.radius_of_visibility / 2;
 }
@@ -62,19 +63,37 @@ function are_equal_points(point1, point2) {
     return false;
 }
 
+function print_stack_trace() {
+    var e = new Error('dummy');
+    var stack = e.stack.replace(/^[^\(]+?[\n$]/gm, '')
+        .replace(/file:.*.js:/gm, 'line ')
+        .replace(/:\d+/gm, '')
+        .replace(/^\s+at\s+/gm, '')
+        .replace(/^Object.<anonymous>\s*\(/gm, '{anonymous}()@')
+        .split('\n');
+    stack.pop();
+    stack.pop();
+    stack.pop();
+    stack.splice(0, 1);
+    console.log(stack);
+}
+
 function add_window_point(player, stack, edge_stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
     var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
-    pocket_emergence_pt.draw('purple');
-    edge.draw('purple');
+
+    pocket_emergence_pt.draw('cyan');
 
     edge_stack.push(pocket_edge);
     stack.push(pocket_emergence_pt);
+
+    print_stack_trace();
 }
 
 function upwards_backtrack(player, edge) {
     var angle_diff = angle_between(edge.start.x, edge.start.y,
                                    edge.end.x, edge.end.y);
+    //angle_diff = (player.angle + angle_diff) % 360;
     return angle_diff < 90;
 }
 
@@ -183,13 +202,15 @@ function visibility_polygon(player, polygon) {
                             last_added_edge,
                             stack[stack.length-1])) {
             deleted_edge = edge_stack.pop();
-            stack.pop();
+            stack.pop().draw('red');
+            deleted_edge.draw('red');
             console.log('i deleted stuff');
         }
         console.log('backtracking.....');
         var edge = edge_stack[stack.length-1];
 
         var upwards = upwards_backtrack(player, last_added_edge);
+        last_added_edge.draw('orange');
         if (!upwards) {
             add_window_point(player, stack, edge_stack,
                              last_added_edge.end, edge);
@@ -219,20 +240,26 @@ function visibility_polygon(player, polygon) {
         // in range => this is between first_right and first_left on the poly.
         if (in_range) {
             if (in_consideration(player, point)) {
-                var dont_push = false;
                 // pivot_pt is the last added point
                 var pivot_pt = stack[stack.length-1];
 
                 var last_added_edge = new Edge(pivot_pt, point);
 
                 if (!right_turn(player.point, pivot_pt, point)) {
+                    /*
                     draw_point(point.x, point.y);
+                    last_added_edge.draw();
+                    */
 
                     if (!is_visible(player, edge_stack[edge_stack.length-1], point)) {
+                        console.log('ah.');
                         add_window_points(point, pivot_pt);
                     }
                     else {
-                        point.draw('red');
+                    }
+
+                    if (right_turn(player.point, pivot_pt, prev_point)) {
+                        // TODO: add window point
                     }
 
                     // update the pivot pt and the last added edge
@@ -241,7 +268,7 @@ function visibility_polygon(player, polygon) {
                 } else {
                     var upwards = upwards_backtrack(player, last_added_edge);
                     if (upwards) { // Want to ignore upwards back-tracks
-                        dont_push = true;
+                        point.is_upwards_backtrack = true;
                     } else {
                         console.log('back-tracking b/c right turn and downwards back-track');
                         backtrack(last_added_edge);
@@ -255,7 +282,7 @@ function visibility_polygon(player, polygon) {
                     backtrack(last_added_edge);
                 }
 
-                if (!dont_push) {
+                if (point.is_upwards_backtrack != true) {
                     stack.push(point);
                     edge_stack.push(new Edge(point, points[(i+1) % points.length]));
                 }
@@ -263,7 +290,7 @@ function visibility_polygon(player, polygon) {
         }
         else {
             // TODO: off-by-1 error with going out of range before getting to the blue point
-            draw_point(point.x, point.y, 'cyan');
+            draw_point(point.x, point.y, 'grey');
         }
         return done_with_algo;
     }
@@ -460,6 +487,9 @@ function main() {
         [x_offset+396, 178],
         [x_offset+330, 153],
         [x_offset+420, 106],
+        [x_offset+450, 76],
+        [x_offset+390, 86],
+        [x_offset+380, 96],
         [x_offset+179, 92],
         [x_offset+266, 144],
         [x_offset+229, 191],
@@ -471,8 +501,8 @@ function main() {
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(401, 327);
-    player.angle = 0;
+    player.move_to(456, 265);
+    player.angle = 330;
     player.draw();
     $('#end').click(function(e) {
         alert(":)");
@@ -511,7 +541,7 @@ function draw_point(x, y, color) {
 
 // For debugging
 function draw_edge(edge, color) {
-    color = color || "purple";
+    color = color || "pink";
     var shape = document.createElementNS("http://www.w3.org/2000/svg", "line");
     shape.setAttribute("x1", edge.start.x);
     shape.setAttribute("y1", edge.start.y);
