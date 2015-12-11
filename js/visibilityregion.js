@@ -65,6 +65,8 @@ function are_equal_points(point1, point2) {
 function add_window_point(player, stack, edge_stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
     var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
+    pocket_emergence_pt.draw('purple');
+    edge.draw('purple');
 
     edge_stack.push(pocket_edge);
     stack.push(pocket_emergence_pt);
@@ -77,7 +79,7 @@ function upwards_backtrack(player, edge) {
 }
 
 
-function is_visibile(player, edge, point) {
+function is_visible(player, edge, point) {
     if (are_equal_points(point, edge.start)) {
         // ehhhhhh this will probably cause errors.
         if (upwards_backtrack(player, edge)) {
@@ -87,6 +89,9 @@ function is_visibile(player, edge, point) {
             return false;
         }
         console.log('heads up - maybe cause errors (point == edge.start)...');
+    }
+    if (is_on_segment(point, edge)) {
+        return true;
     }
     var intersection = checkLineIntersection(
             player.x, player.y,
@@ -174,24 +179,15 @@ function visibility_polygon(player, polygon) {
 
     function backtrack(last_added_edge) {
         var deleted_edge = null;
-        while (stack.length > 2 && !is_visibile(player,
+        while (stack.length > 2 && !is_visible(player,
                             last_added_edge,
                             stack[stack.length-1])) {
             deleted_edge = edge_stack.pop();
             stack.pop();
-            deleted_edge;
             console.log('i deleted stuff');
         }
         console.log('backtracking.....');
-        var edge;
-        edge = edge_stack[stack.length-1];
-        /*
-        if (!deleted_edge) {
-        }
-        else {
-            edge = deleted_edge;
-        }
-        */
+        var edge = edge_stack[stack.length-1];
 
         var upwards = upwards_backtrack(player, last_added_edge);
         if (!upwards) {
@@ -208,8 +204,6 @@ function visibility_polygon(player, polygon) {
             in_range = true;
         }
         if (in_range && point.x == first_left.end_x && point.y == first_left.end_y) {
-            //in_range = false;
-
             // Try to add a window one last time
             var pivot_pt = stack[stack.length-1];
             if (right_turn(player.point, pivot_pt, prev_point) &&
@@ -234,7 +228,12 @@ function visibility_polygon(player, polygon) {
                 if (!right_turn(player.point, pivot_pt, point)) {
                     draw_point(point.x, point.y);
 
-                    add_window_points(point, pivot_pt);
+                    if (!is_visible(player, edge_stack[edge_stack.length-1], point)) {
+                        add_window_points(point, pivot_pt);
+                    }
+                    else {
+                        point.draw('red');
+                    }
 
                     // update the pivot pt and the last added edge
                     pivot_pt = stack[stack.length-1];
@@ -244,7 +243,7 @@ function visibility_polygon(player, polygon) {
                     if (upwards) { // Want to ignore upwards back-tracks
                         dont_push = true;
                     } else {
-                        console.log('back-tracking b/c not right turn and downwards back-track');
+                        console.log('back-tracking b/c right turn and downwards back-track');
                         backtrack(last_added_edge);
                     }
                 }
@@ -403,7 +402,7 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 
 function main() {
-    var x_offset = 100;
+    var x_offset = -00;
     var y_offset = 0;
     var maze = new Maze([ // don't ask me how i made this
         [x_offset+486, y_offset+126],
@@ -440,6 +439,7 @@ function main() {
         [x_offset+484, y_offset+32]
     ]);
 
+    /*
     var maze = new Maze([
         [x_offset+349, 321],
         [x_offset+618, 46],
@@ -454,14 +454,25 @@ function main() {
         [x_offset+215, 104],
         [x_offset+115, 113],
     ]);
+    */
+    var maze = new Maze([
+        [x_offset+308, 322],
+        [x_offset+396, 178],
+        [x_offset+330, 153],
+        [x_offset+420, 106],
+        [x_offset+179, 92],
+        [x_offset+266, 144],
+        [x_offset+229, 191],
+    ]);
     maze.start = maze.points[0];
     //maze.end = maze.points[14];
     maze.scale(1.35);
     maze.draw(); 
 
     var player = new Player(maze);
-    player.move_to(player.x-30, player.y - 205);
-    player.angle = 182;
+    player.move_to(player.x+0, player.y - 5);
+    player.move_to(401, 327);
+    player.angle = 0;
     player.draw();
     $('#end').click(function(e) {
         alert(":)");
