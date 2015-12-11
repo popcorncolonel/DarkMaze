@@ -65,35 +65,38 @@ function are_equal_points(point1, point2) {
 
 function print_stack_trace() {
     var e = new Error('dummy');
-    var stack = e.stack.replace(/^[^\(]+?[\n$]/gm, '')
+    var call_stack = e.stack.replace(/^[^\(]+?[\n$]/gm, '')
         .replace(/file:.*.js:/gm, 'line ')
         .replace(/:\d+/gm, '')
         .replace(/^\s+at\s+/gm, '')
         .replace(/^Object.<anonymous>\s*\(/gm, '{anonymous}()@')
         .split('\n');
-    stack.pop();
-    stack.pop();
-    stack.pop();
-    stack.splice(0, 1);
-    console.log(stack);
+    call_stack.pop();
+    call_stack.pop();
+    call_stack.pop();
+    call_stack.splice(0, 1);
+    console.log(call_stack);
 }
 
 function add_window_point(player, stack, edge_stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
     var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
 
-    pocket_emergence_pt.draw('cyan');
-
     edge_stack.push(pocket_edge);
     stack.push(pocket_emergence_pt);
 
-    print_stack_trace();
+    //print_stack_trace();
 }
 
 function upwards_backtrack(player, edge) {
+    var init_angle = angle_with(player, edge.start);
+    // This happens at the first iteration.
+    if (Math.abs(init_angle - player.radius_of_visibility/2) < 0.00001) {
+        return false;
+    }
     var angle_diff = angle_between(edge.start.x, edge.start.y,
                                    edge.end.x, edge.end.y);
-    //angle_diff = (player.angle + angle_diff) % 360;
+    //angle_diff = (angle_diff + init_angle) % 360;
     return angle_diff < 90;
 }
 
@@ -161,7 +164,7 @@ function visibility_polygon(player, polygon) {
     var first_left = collision_with_polygon(player,
              (player.angle - player.radius_of_visibility / 2) % 360, polygon);
 
-    first_collision_pt = new Point(first_right.x, first_right.y);
+    var first_collision_pt = new Point(first_right.x, first_right.y);
     stack.push(player.point);
     edge_stack.push(new Edge(player.point, first_collision_pt));
 
@@ -206,11 +209,11 @@ function visibility_polygon(player, polygon) {
             deleted_edge.draw('red');
             console.log('i deleted stuff');
         }
-        console.log('backtracking.....');
+        //console.log('backtracking.....');
         var edge = edge_stack[stack.length-1];
 
         var upwards = upwards_backtrack(player, last_added_edge);
-        last_added_edge.draw('orange');
+        upwards = upwards || upwards_backtrack(player, edge);
         if (!upwards) {
             add_window_point(player, stack, edge_stack,
                              last_added_edge.end, edge);
@@ -234,6 +237,7 @@ function visibility_polygon(player, polygon) {
                                  last_edge);
             }
             done_with_algo = true; // say the algorithm is done.
+            in_range = false;
             return done_with_algo;
         }
 
@@ -258,8 +262,11 @@ function visibility_polygon(player, polygon) {
                     else {
                     }
 
+                    // Just emerged from a pocket.
                     if (right_turn(player.point, pivot_pt, prev_point)) {
-                        // TODO: add window point
+                        var window_emergence_edge = new Edge(prev_point, point);
+                        add_window_point(player, stack, edge_stack, pivot_pt, 
+                            window_emergence_edge);
                     }
 
                     // update the pivot pt and the last added edge
@@ -270,7 +277,7 @@ function visibility_polygon(player, polygon) {
                     if (upwards) { // Want to ignore upwards back-tracks
                         point.is_upwards_backtrack = true;
                     } else {
-                        console.log('back-tracking b/c right turn and downwards back-track');
+                        //console.log('back-tracking b/c right turn and downwards back-track');
                         backtrack(last_added_edge);
                     }
                 }
@@ -278,7 +285,7 @@ function visibility_polygon(player, polygon) {
                 if (!are_equal_points(prev_point, pivot_pt))
                 {
                     last_added_edge = new Edge(prev_point, point);
-                    console.log('backtracking b/c prev_pt != pivot');
+                    //console.log('backtracking b/c prev_pt != pivot');
                     backtrack(last_added_edge);
                 }
 
@@ -286,11 +293,16 @@ function visibility_polygon(player, polygon) {
                     stack.push(point);
                     edge_stack.push(new Edge(point, points[(i+1) % points.length]));
                 }
+                point.is_upwards_backtrack = false;
             }
         }
         else {
             // TODO: off-by-1 error with going out of range before getting to the blue point
             draw_point(point.x, point.y, 'grey');
+        }
+        if (are_equal_points(stack[stack.length-1], stack[stack.length-2])) {
+            edge_stack.pop();
+            stack.pop();
         }
         return done_with_algo;
     }
@@ -314,11 +326,11 @@ function visibility_polygon(player, polygon) {
     stack.push(last_point);
     edge_stack.push(new Edge(last_point, player.point));
 
-    var points = [];
+    var final_points = [];
     stack.forEach(function(point) {
-        points.push([point.x, point.y]);
+        final_points.push([point.x, point.y]);
     });
-    var visibility = new Polygon('visibility', points);
+    var visibility = new Polygon('visibility', final_points);
     return visibility;
 }
 
@@ -382,6 +394,43 @@ function first_collision(x, y, angle, polygon) {
         }
     });
     return first;
+}
+
+// For debugging
+function draw_point(x, y, color) {
+    color = color || "pink";
+    var shape = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    shape.setAttribute("cx", x);
+    shape.setAttribute("cy", y);
+    shape.setAttribute("r",  5);
+    shape.setAttribute("fill", color);
+    shape.setAttribute("class", "drawn_point");
+    $("svg").append(shape);
+}
+
+// For debugging
+function draw_edge(edge, color) {
+    color = color || "pink";
+    var shape = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    shape.setAttribute("x1", edge.start.x);
+    shape.setAttribute("y1", edge.start.y);
+    shape.setAttribute("x2", edge.end.x);
+    shape.setAttribute("y2", edge.end.y);
+    shape.setAttribute("style", "stroke-width:3");
+    shape.setAttribute("stroke", color);
+    $("svg").append(shape);
+}
+
+// For debugging
+function draw_line(x1, y1, x2, y2) {
+    var shape = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    shape.setAttribute("x1", x1);
+    shape.setAttribute("y1", y1);
+    shape.setAttribute("x2", x2);
+    shape.setAttribute("y2", y2);
+    shape.setAttribute("stroke", "pink");
+    shape.setAttribute("style", "stroke-width:2");
+    $("svg").append(shape);
 }
 
 
@@ -481,7 +530,6 @@ function main() {
         [x_offset+215, 104],
         [x_offset+115, 113],
     ]);
-    */
     var maze = new Maze([
         [x_offset+308, 322],
         [x_offset+396, 178],
@@ -494,6 +542,14 @@ function main() {
         [x_offset+266, 144],
         [x_offset+229, 191],
     ]);
+    */
+    var maze = new Maze([
+        [x_offset+286, 345],
+        [x_offset+335, 240],
+        [x_offset+239, 51],
+        [x_offset+279, 228],
+        [x_offset+209, 202],
+    ]);
     maze.start = maze.points[0];
     //maze.end = maze.points[14];
     maze.scale(1.35);
@@ -501,8 +557,9 @@ function main() {
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(456, 265);
-    player.angle = 330;
+    player.move_to(411, 306);
+    player.angle = 270;
+
     player.draw();
     $('#end').click(function(e) {
         alert(":)");
@@ -526,41 +583,4 @@ function main() {
 }
 
 main();
-
-// For debugging
-function draw_point(x, y, color) {
-    color = color || "pink";
-    var shape = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    shape.setAttribute("cx", x);
-    shape.setAttribute("cy", y);
-    shape.setAttribute("r",  5);
-    shape.setAttribute("fill", color);
-    shape.setAttribute("class", "drawn_point");
-    $("svg").append(shape);
-}
-
-// For debugging
-function draw_edge(edge, color) {
-    color = color || "pink";
-    var shape = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    shape.setAttribute("x1", edge.start.x);
-    shape.setAttribute("y1", edge.start.y);
-    shape.setAttribute("x2", edge.end.x);
-    shape.setAttribute("y2", edge.end.y);
-    shape.setAttribute("style", "stroke-width:3");
-    shape.setAttribute("stroke", color);
-    $("svg").append(shape);
-}
-
-// For debugging
-function draw_line(x1, y1, x2, y2) {
-    var shape = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    shape.setAttribute("x1", x1);
-    shape.setAttribute("y1", y1);
-    shape.setAttribute("x2", x2);
-    shape.setAttribute("y2", y2);
-    shape.setAttribute("stroke", "pink");
-    shape.setAttribute("style", "stroke-width:2");
-    $("svg").append(shape);
-}
 
