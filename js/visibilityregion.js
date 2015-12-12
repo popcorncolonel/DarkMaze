@@ -581,6 +581,22 @@ function main() {
             }
             var visibility = visibility_polygon(player, maze.polygon, 'visibility');
             visibility.draw();
+            /*
+            player.angle += 90;
+
+            visibility = visibility_polygon(player, maze.polygon, 'visibility2');
+            visibility.draw();
+            player.angle += 90;
+
+            visibility = visibility_polygon(player, maze.polygon, 'visibility3');
+            visibility.draw();
+            player.angle += 90;
+
+            visibility = visibility_polygon(player, maze.polygon, 'visibility4');
+            visibility.draw();
+            player.angle += 90;
+            player.angle -= 360;
+            */
         }
     };
     var visibility = visibility_polygon(player, maze.polygon, 'visibility');
@@ -591,12 +607,12 @@ function main() {
     */
 
     dragging = false;
-    $('#maze').mousedown(function(e) {dragging = true;});
-    $('#visibility').mousedown(function(e) {dragging = true;});
-    $('#maze').mousemove(onclick);
-    $('#visibility').mousemove(onclick);
-    $('#maze').mouseup(function(e) {dragging = false;console.log(dragging);});
-    $('#visibility').mouseup(function(e) {dragging = false;console.log(dragging);});
+    $('polygon').mousedown(function(e) {dragging = true;onclick(e);})
+                .mousemove(onclick)
+                .mouseup(function(e) {dragging = false;console.log(dragging);});
+    $('#player').mousedown(function(e) {dragging = true;})
+                .mousemove(onclick) 
+                .mouseup(function(e) {dragging = false;console.log('PLAYER');});
 }
 
 
