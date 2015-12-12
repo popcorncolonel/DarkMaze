@@ -82,24 +82,27 @@ function add_window_point(player, stack, edge_stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
     var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
 
+    pocket_emergence_pt.draw('magenta');
+
     edge_stack.push(pocket_edge);
     stack.push(pocket_emergence_pt);
 
     //print_stack_trace();
 }
 
-function upwards_backtrack(player, edge) {
-    var init_angle = angle_with(player, edge.start);
-    // This happens at the first iteration.
-    if (Math.abs(init_angle - player.radius_of_visibility/2) < 0.00001) {
-        return false;
-    }
-    var angle_diff = angle_between(edge.start.x, edge.start.y,
-                                   edge.end.x, edge.end.y);
-    //angle_diff = (angle_diff + init_angle) % 360;
-    return angle_diff < 90;
+// #law of cosines
+function find_angle(A,B,C) {
+    var AB = Math.sqrt(Math.pow(B.x-A.x,2)+ Math.pow(B.y-A.y,2));    
+    var BC = Math.sqrt(Math.pow(B.x-C.x,2)+ Math.pow(B.y-C.y,2)); 
+    var AC = Math.sqrt(Math.pow(C.x-A.x,2)+ Math.pow(C.y-A.y,2));
+    return Math.acos((BC*BC+AB*AB-AC*AC)/(2*BC*AB)) * 180 / Math.PI;
 }
 
+function upwards_backtrack(player, edge) {
+    var is_right_turn = right_turn(player.point, edge.start, edge.end);
+    var line_angle = find_angle(player.point, edge.start, edge.end) - 90;
+    return is_right_turn && line_angle > 0 && line_angle < 90;
+}
 
 function is_visible(player, edge, point) {
     if (are_equal_points(point, edge.start)) {
@@ -108,9 +111,9 @@ function is_visible(player, edge, point) {
             return true;
         }
         else {
+            // TODO: problem with downward backtracking
             return false;
         }
-        console.log('heads up - maybe cause errors (point == edge.start)...');
     }
     if (is_on_segment(point, edge)) {
         return true;
@@ -148,7 +151,7 @@ function collision_with_edge(player, point_through, edge) {
 }
 
 // Assume the polygon is drawn in CCW direction
-function visibility_polygon(player, polygon) {
+function visibility_polygon(player, polygon, html_id) {
     // When a point is pushed on the (point) stack, the edge (starting at that point,
     // ending at the NEXT point in the iteration) is pushed on the edge stack.
     //   Invariant: stack.length == edge_stack.length.
@@ -201,22 +204,27 @@ function visibility_polygon(player, polygon) {
 
     function backtrack(last_added_edge) {
         var deleted_edge = null;
-        while (stack.length > 2 && !is_visible(player,
-                            last_added_edge,
-                            stack[stack.length-1])) {
+        // TODO: problem with downwards backtracking (see paintbucket)
+        while (stack.length > 2 &&
+               !is_visible(player,
+                           last_added_edge,
+                           stack[stack.length-1]))
+        {
             deleted_edge = edge_stack.pop();
             stack.pop().draw('red');
             deleted_edge.draw('red');
             console.log('i deleted stuff');
         }
-        //console.log('backtracking.....');
+        console.log('backtracking.....');
         var edge = edge_stack[stack.length-1];
 
         var upwards = upwards_backtrack(player, last_added_edge);
         upwards = upwards || upwards_backtrack(player, edge);
         if (!upwards) {
+            last_added_edge.end.draw('purple');
             add_window_point(player, stack, edge_stack,
                              last_added_edge.end, edge);
+            console.log('ye');
         }
     }
 
@@ -256,10 +264,7 @@ function visibility_polygon(player, polygon) {
                     */
 
                     if (!is_visible(player, edge_stack[edge_stack.length-1], point)) {
-                        console.log('ah.');
                         add_window_points(point, pivot_pt);
-                    }
-                    else {
                     }
 
                     // Just emerged from a pocket.
@@ -330,7 +335,7 @@ function visibility_polygon(player, polygon) {
     stack.forEach(function(point) {
         final_points.push([point.x, point.y]);
     });
-    var visibility = new Polygon('visibility', final_points);
+    var visibility = new Polygon(html_id, final_points);
     return visibility;
 }
 
@@ -557,30 +562,43 @@ function main() {
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(411, 306);
-    player.angle = 270;
+    player.move_to(385, 260);
+    player.angle = 190;
 
     player.draw();
     $('#end').click(function(e) {
         alert(":)");
     });
     var onclick = function(e) {
-        $('.drawn_point').remove();
-        $('line').remove();
-        var x = e.offsetX;
-        var y = e.offsetY;
-        if (is_valid_click(player, x, y)) {
-            player.move_to(x, y);
-            player.draw();
+        if (dragging) {
+            $('.drawn_point').remove();
+            $('line').remove();
+            var x = e.offsetX;
+            var y = e.offsetY;
+            if (is_valid_click(player, x, y)) {
+                player.move_to(x, y);
+                player.draw();
+            }
+            var visibility = visibility_polygon(player, maze.polygon, 'visibility');
+            visibility.draw();
         }
-        var visibility = visibility_polygon(player, maze.polygon);
-        visibility.draw();
     };
-    var visibility = visibility_polygon(player, maze.polygon);
+    var visibility = visibility_polygon(player, maze.polygon, 'visibility');
     visibility.draw();
+    /*
     $('#maze').click(onclick);
     $('#visibility').click(onclick);
+    */
+
+    dragging = false;
+    $('#maze').mousedown(function(e) {dragging = true;});
+    $('#visibility').mousedown(function(e) {dragging = true;});
+    $('#maze').mousemove(onclick);
+    $('#visibility').mousemove(onclick);
+    $('#maze').mouseup(function(e) {dragging = false;console.log(dragging);});
+    $('#visibility').mouseup(function(e) {dragging = false;console.log(dragging);});
 }
+
 
 main();
 
