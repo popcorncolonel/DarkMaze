@@ -34,7 +34,7 @@ function cross_product(point1, point2, point3) {
 }
 
 function right_turn(point1, point2, point3) {
-    var is_right = cross_product(point1, point2, point3) < 0;
+    var is_right = cross_product(point1, point2, point3) <= 0;
     return !is_right; // not because the y-coordinate is flipped. 
 }
 
@@ -82,8 +82,18 @@ function add_window_point(player, stack, edge_stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
     var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
 
-    edge_stack.push(pocket_edge);
-    stack.push(pocket_emergence_pt);
+    var intersection = checkLineIntersection(
+            player.point.x, player.point.y,
+            point_through.x, point_through.y,
+            edge.start.x, edge.start.y,
+            edge.end.x, edge.end.y);
+
+    if (intersection.onLine2) {
+        edge_stack.push(pocket_edge);
+        stack.push(pocket_emergence_pt);
+    }
+    else {
+    }
 
     return pocket_emergence_pt;
 }
@@ -116,21 +126,24 @@ function downwards_backtrack_is_visible(player, edge, point, pivot_pt) {
     var dist_to_intersection = point_dist(player.point, intersection_pt);
     var dist_to_edge_end = point_dist(player.point, edge.end);
     var is_really_visible = dist_to_intersection < dist_to_edge_end;
-    console.log(is_really_visible);
-    //edge.draw('orange');
     return is_really_visible;
 }
 
 // this fn is a gd mess.
 function is_visible(player, edge, point, pivot_pt) {
+    // ehhhhhh this will probably cause errors.
+    edge.draw();
     if (are_equal_points(point, edge.start)) {
-        // ehhhhhh this will probably cause errors.
         if (upwards_backtrack(player, edge)) {
             return true;
         }
         else {
             if (right_turn(player.point, edge.start, edge.end)) {
-                return downwards_backtrack_is_visible(player, edge, point, pivot_pt);
+                console.log('right turn..');
+                var result = downwards_backtrack_is_visible(player, edge, point, pivot_pt);
+                return false;
+                console.log(result);
+                return result;
             }
         }
     }
@@ -142,7 +155,12 @@ function is_visible(player, edge, point, pivot_pt) {
             point.x, point.y,
             edge.start.x, edge.start.y,
             edge.end.x, edge.end.y);
-    return !(intersection.onLine1 && intersection.onLine2);
+    var intersection_pt = new Point(intersection.x, intersection.y);
+    var onLine2 = intersection.onLine2 ||
+                  are_equal_points(edge.start, intersection_pt) || 
+                  are_equal_points(edge.end, intersection_pt);
+                  
+    return !(intersection.onLine1 && onLine2);
 }
 
 function collision_with_edge(player, point_through, edge) {
@@ -229,8 +247,9 @@ function visibility_polygon(player, polygon, html_id) {
                            stack[stack.length-1], stack[stack.length-2]))
         {
             deleted_edge = edge_stack.pop();
+            deleted_point = stack.pop();
 
-            stack.pop().draw('red');
+            deleted_point.draw('red');
             deleted_edge.draw('red');
             console.log('i deleted stuff');
         }
@@ -249,6 +268,8 @@ function visibility_polygon(player, polygon, html_id) {
             
             var emergence_pt = add_window_point(player, stack, edge_stack,
                              point_through, edge);
+        }
+        else {
         }
     }
 
@@ -283,11 +304,6 @@ function visibility_polygon(player, polygon, html_id) {
                 var last_added_edge = new Edge(pivot_pt, point);
 
                 if (!right_turn(player.point, pivot_pt, point)) {
-                    /*
-                    draw_point(point.x, point.y);
-                    last_added_edge.draw();
-                    */
-
                     if (!is_visible(player, edge_stack[edge_stack.length-1], point, pivot_pt)) {
                         add_window_points(point, pivot_pt);
                     }
@@ -303,13 +319,22 @@ function visibility_polygon(player, polygon, html_id) {
                     pivot_pt = stack[stack.length-1];
                     last_added_edge = new Edge(pivot_pt, point);
                 } else {
+                    // if it's a right turn
                     var upwards = upwards_backtrack(player, last_added_edge);
+                    // if it's an upwards right turn
                     if (upwards) { // Want to ignore upwards back-tracks
                         point.is_upwards_backtrack = true;
-                    } else {
+                    } else { // if it's a downwards right turn
+                        // If previous edge was a visible downwards backtrack
                         var d_b_is_visible = downwards_backtrack_is_visible(
                                     player, last_added_edge, pivot_pt, stack[stack.length-2]);
-                        if (!d_b_is_visible) {
+                        if (is_on_segment(pivot_pt,
+                                          new Edge(player.point, stack[stack.length-2])))
+                        {
+                            // The last pt added was a window point
+                            d_b_is_visible = false;
+                        }
+                        if (!d_b_is_visible) { // if it's an invisible downwards right turn
                             console.log('back-tracking b/c right turn and downwards back-track');
                             backtrack(last_added_edge);
                         } else {
@@ -328,12 +353,14 @@ function visibility_polygon(player, polygon, html_id) {
                     stack.push(point);
                     edge_stack.push(next_edge);
                 }
+                else {
+                }
                 point.invisible = false;
                 point.is_upwards_backtrack = false;
             }
         }
         else {
-            draw_point(point.x, point.y, 'grey');
+            //draw_point(point.x, point.y, 'grey');
         }
         while (are_equal_points(stack[stack.length-1], stack[stack.length-2])) {
             edge_stack.pop();
@@ -518,7 +545,7 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 
 function main() {
-    var x_offset = -200;
+    var x_offset = -00;
     var y_offset = 0;
     var maze = new Maze([ // don't ask me how i made this
         [x_offset+486, y_offset+126],
@@ -589,7 +616,43 @@ function main() {
         [x_offset+431, 87],
         [x_offset+321, 123],
     ]);
+    var maze = new Maze([
+        [x_offset+522, 236],
+        [x_offset+556, 244],
+        [x_offset+573, 255],
+        [x_offset+754, 237],
+        [x_offset+445, 212],
+        [x_offset+543, 191],
+        [x_offset+447, 173],
+        [x_offset+524, 96],
+        [x_offset+367, 154],
+        [x_offset+359, 235],
+    ]);
     */
+    var maze = new Maze([
+        [x_offset+344, 236],
+        [x_offset+315, 230],
+        [x_offset+310, 151],
+        [x_offset+354, 114],
+        /*
+        [x_offset+526, 116],
+        [x_offset+559, 175],
+        [x_offset+522, 214],
+        [x_offset+514, 152],
+        [x_offset+365, 134],
+        [x_offset+335, 201],
+        [x_offset+392, 202],
+        [x_offset+421, 255],
+        [x_offset+454, 270],
+        [x_offset+578, 256],
+        [x_offset+589, 112],
+        [x_offset+453, 72],
+        */
+        [x_offset+301, 95],
+        [x_offset+243, 160],
+        [x_offset+290, 257],
+        [x_offset+414, 300],
+    ]);
     
     maze.start = maze.points[0];
     //maze.end = maze.points[14];
@@ -598,8 +661,8 @@ function main() {
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(300, 70);
-    player.angle = 140;
+    player.move_to(393, 265);
+    player.angle = 135;
 
     player.draw();
     $('#end').click(function(e) {
