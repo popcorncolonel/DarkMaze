@@ -130,25 +130,25 @@ function downwards_backtrack_is_visible(player, edge, point, pivot_pt) {
 }
 
 // this fn is a gd mess.
+// Is point visible, with respect to the player and the edge? (passes in the pivot_pt for context)
 function is_visible(player, edge, point, pivot_pt) {
     // ehhhhhh this will probably cause errors.
-    edge.draw();
     if (are_equal_points(point, edge.start)) {
-        if (upwards_backtrack(player, edge)) {
-            return true;
-        }
-        else {
-            if (right_turn(player.point, edge.start, edge.end)) {
-                console.log('right turn..');
-                var result = downwards_backtrack_is_visible(player, edge, point, pivot_pt);
-                return false;
-                console.log(result);
-                return result;
+        if (right_turn(player.point, edge.start, edge.end)) {
+            if (upwards_backtrack(player, edge)) {
+                return true;
+            }
+            else {
+                // Conjecture: If edge is a downwards backtrack,
+                //             point is visible iff (pivot, point, edge.end) is a right turn
+                if (right_turn(pivot_pt, point, edge.end)) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
             }
         }
-    }
-    if (is_on_segment(point, edge)) {
-        return true;
     }
     var intersection = checkLineIntersection(
             player.x, player.y,
@@ -156,6 +156,8 @@ function is_visible(player, edge, point, pivot_pt) {
             edge.start.x, edge.start.y,
             edge.end.x, edge.end.y);
     var intersection_pt = new Point(intersection.x, intersection.y);
+
+    // This fixed some roundoff errors
     var onLine2 = intersection.onLine2 ||
                   are_equal_points(edge.start, intersection_pt) || 
                   are_equal_points(edge.end, intersection_pt);
@@ -249,8 +251,10 @@ function visibility_polygon(player, polygon, html_id) {
             deleted_edge = edge_stack.pop();
             deleted_point = stack.pop();
 
+            /*
             deleted_point.draw('red');
             deleted_edge.draw('red');
+            */
             console.log('i deleted stuff');
         }
         console.log('backtracking.....');
@@ -304,10 +308,6 @@ function visibility_polygon(player, polygon, html_id) {
                 var last_added_edge = new Edge(pivot_pt, point);
 
                 if (!right_turn(player.point, pivot_pt, point)) {
-                    if (!is_visible(player, edge_stack[edge_stack.length-1], point, pivot_pt)) {
-                        add_window_points(point, pivot_pt);
-                    }
-
                     // Just emerged from a pocket.
                     if (right_turn(player.point, pivot_pt, prev_point)) {
                         var window_emergence_edge = new Edge(prev_point, point);
@@ -319,15 +319,29 @@ function visibility_polygon(player, polygon, html_id) {
                     pivot_pt = stack[stack.length-1];
                     last_added_edge = new Edge(pivot_pt, point);
                 } else {
-                    // if it's a right turn
+                    // INVARIANT: (player, pivot, point) is a right turn
+                    var next_point = points[(i+1) % points.length];
+                    // TODO: come with the purpose for the is_visible method
+                    if (is_visible(player, last_added_edge, next_point, point)) {
+                        // Example: player = (0,0), pivot_pt = (-1, 1), point = (-0.5, 1) => 
+                        //          this right turn is visible (cartesian coords, not js coords
+                        console.log('YES dude');
+                    } else {
+                        console.log('NO dude');
+                        point.invisible = true;
+                    }
                     var upwards = upwards_backtrack(player, last_added_edge);
                     // if it's an upwards right turn
                     if (upwards) { // Want to ignore upwards back-tracks
                         point.is_upwards_backtrack = true;
                     } else { // if it's a downwards right turn
                         // If previous edge was a visible downwards backtrack
+                        backtrack(last_added_edge);
+                        // TODO: overhaul this logic. Enumerate the cases for what a
+                        //       downwards backtrack could look like.
+                        /*
                         var d_b_is_visible = downwards_backtrack_is_visible(
-                                    player, last_added_edge, pivot_pt, stack[stack.length-2]);
+                                    player, next_edge, point, pivot_pt);
                         if (is_on_segment(pivot_pt,
                                           new Edge(player.point, stack[stack.length-2])))
                         {
@@ -337,9 +351,14 @@ function visibility_polygon(player, polygon, html_id) {
                         if (!d_b_is_visible) { // if it's an invisible downwards right turn
                             console.log('back-tracking b/c right turn and downwards back-track');
                             backtrack(last_added_edge);
-                        } else {
+                        }
+                        else {
+                            console.log(downwards_backtrack_is_visible(
+                                    player, next_edge, point, pivot_pt));
+                            backtrack(last_added_edge);
                             point.invisible = true;
                         }
+                        */
                     }
                 }
                 // If prev_point != pivot_pt, try to back_track (it won't always do something)
@@ -360,7 +379,6 @@ function visibility_polygon(player, polygon, html_id) {
             }
         }
         else {
-            //draw_point(point.x, point.y, 'grey');
         }
         while (are_equal_points(stack[stack.length-1], stack[stack.length-2])) {
             edge_stack.pop();
@@ -630,24 +648,26 @@ function main() {
     ]);
     */
     var maze = new Maze([
+            /*
         [x_offset+344, 236],
         [x_offset+315, 230],
         [x_offset+310, 151],
+        */
         [x_offset+354, 114],
-        /*
         [x_offset+526, 116],
         [x_offset+559, 175],
         [x_offset+522, 214],
+        /*
         [x_offset+514, 152],
         [x_offset+365, 134],
         [x_offset+335, 201],
         [x_offset+392, 202],
         [x_offset+421, 255],
+        */
         [x_offset+454, 270],
         [x_offset+578, 256],
         [x_offset+589, 112],
         [x_offset+453, 72],
-        */
         [x_offset+301, 95],
         [x_offset+243, 160],
         [x_offset+290, 257],
@@ -658,11 +678,14 @@ function main() {
     //maze.end = maze.points[14];
     maze.scale(1.35);
     maze.draw(); 
+    maze.points.forEach(function(point) {
+        draw_point(point[0], point[1], 'grey');
+    });
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(393, 265);
-    player.angle = 135;
+    player.move_to(471, 192);
+    player.angle = 45;
 
     player.draw();
     $('#end').click(function(e) {
