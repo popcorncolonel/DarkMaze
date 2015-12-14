@@ -106,7 +106,7 @@ function find_angle(A,B,C) {
     return Math.acos((BC*BC+AB*AB-AC*AC)/(2*BC*AB)) * 180 / Math.PI;
 }
 
-function upwards_backtrack(player, edge) {
+function is_upwards_backtrack(player, edge) {
     var is_right_turn = right_turn(player.point, edge.start, edge.end);
     var line_angle = find_angle(player.point, edge.start, edge.end) - 90;
     return is_right_turn && line_angle > 0 && line_angle < 90;
@@ -165,6 +165,37 @@ function is_visible(player, edge, point, pivot_pt) {
     return !(intersection.onLine1 && onLine2);
 }
 
+// Gets the collision with the "infinite" ray defined by a segment (start/end determine direction)
+function collision_with_ray(ray, edge) {
+    var x = ray.start.x;
+    var y = ray.start.y;
+
+    var angle = angle_between(ray.start.x, ray.start.y, ray.end.x, ray.end.y);
+
+    // Minus 90 because HTML5 orients angles vertical, and Math.cos expects horiz
+    var angle_rads = (angle-90) * Math.PI / 180.0;
+    // Hack - draw a long (but finite) "ray" from the player in
+    // the direction of some specified angle to collide with all
+    // the edges of the polygon.
+    var ray_endpt = {
+        x: x + 5000*Math.cos(angle_rads),
+        y: y + 5000*Math.sin(angle_rads)
+    };
+
+    var intersection = checkLineIntersection( // O(1)
+            x, y,
+            ray_endpt.x, ray_endpt.y,
+            edge.start.x, edge.start.y,
+            edge.end.x, edge.end.y);
+
+    if (intersection.onLine1) {
+        return intersection;
+    }
+    else {
+        return null;
+    }
+}
+
 function collision_with_edge(player, point_through, edge) {
     var x = player.x;
     var y = player.y;
@@ -190,7 +221,9 @@ function collision_with_edge(player, point_through, edge) {
 }
 
 // Assume the polygon is drawn in CCW direction
-function visibility_polygon(player, polygon, html_id) {
+/*
+function visibility_polygon(player, polygon, html_id)
+{
     // When a point is pushed on the (point) stack, the edge (starting at that point,
     // ending at the NEXT point in the iteration) is pushed on the edge stack.
     //   Invariant: stack.length == edge_stack.length.
@@ -251,10 +284,8 @@ function visibility_polygon(player, polygon, html_id) {
             deleted_edge = edge_stack.pop();
             deleted_point = stack.pop();
 
-            /*
             deleted_point.draw('red');
             deleted_edge.draw('red');
-            */
             console.log('i deleted stuff');
         }
         console.log('backtracking.....');
@@ -321,7 +352,6 @@ function visibility_polygon(player, polygon, html_id) {
                 } else {
                     // INVARIANT: (player, pivot, point) is a right turn
                     var next_point = points[(i+1) % points.length];
-                    // TODO: come with the purpose for the is_visible method
                     if (is_visible(player, last_added_edge, next_point, point)) {
                         // Example: player = (0,0), pivot_pt = (-1, 1), point = (-0.5, 1) => 
                         //          this right turn is visible (cartesian coords, not js coords
@@ -331,34 +361,12 @@ function visibility_polygon(player, polygon, html_id) {
                         point.invisible = true;
                     }
                     var upwards = upwards_backtrack(player, last_added_edge);
-                    // if it's an upwards right turn
+                    // If it's an upwards right turn
                     if (upwards) { // Want to ignore upwards back-tracks
                         point.is_upwards_backtrack = true;
                     } else { // if it's a downwards right turn
                         // If previous edge was a visible downwards backtrack
                         backtrack(last_added_edge);
-                        // TODO: overhaul this logic. Enumerate the cases for what a
-                        //       downwards backtrack could look like.
-                        /*
-                        var d_b_is_visible = downwards_backtrack_is_visible(
-                                    player, next_edge, point, pivot_pt);
-                        if (is_on_segment(pivot_pt,
-                                          new Edge(player.point, stack[stack.length-2])))
-                        {
-                            // The last pt added was a window point
-                            d_b_is_visible = false;
-                        }
-                        if (!d_b_is_visible) { // if it's an invisible downwards right turn
-                            console.log('back-tracking b/c right turn and downwards back-track');
-                            backtrack(last_added_edge);
-                        }
-                        else {
-                            console.log(downwards_backtrack_is_visible(
-                                    player, next_edge, point, pivot_pt));
-                            backtrack(last_added_edge);
-                            point.invisible = true;
-                        }
-                        */
                     }
                 }
                 // If prev_point != pivot_pt, try to back_track (it won't always do something)
@@ -414,6 +422,148 @@ function visibility_polygon(player, polygon, html_id) {
     var final_points = [];
     stack.forEach(function(point) {
         final_points.push([point.x, point.y]);
+    });
+    var visibility = new Polygon(html_id, final_points);
+    return visibility;
+}
+*/
+
+function visibility_polygon(player, polygon, html_id)
+{
+    // When a point is pushed on the (point) stack, the edge (starting at that point,
+    // ending at the NEXT point in the iteration) is pushed on the edge stack.
+    //   Invariant: stack.length == edge_stack.length.
+    var stack = [];
+
+    // first point to the right
+    var first_right = collision_with_polygon(player,
+             (player.angle + player.radius_of_visibility / 2) % 360, polygon);
+    draw_point(first_right.x, first_right.y, 'blue');
+
+    // first point to the left (end of the visibility polygon
+    var first_left = collision_with_polygon(player,
+             (player.angle - player.radius_of_visibility / 2) % 360, polygon);
+
+    var first_collision_pt = new Point(first_right.x, first_right.y);
+    stack.push(new Edge(player.point, first_collision_pt));
+
+    stack.push(new Edge(first_collision_pt,
+                             new Point(first_right.end_x, first_right.end_y)
+                    ));
+
+    var i = 0;
+    var edges = polygon.edges.slice(); // slice for copy of array
+    var in_range = false;
+
+    var upwards_backtrack_mode = false;
+
+    // Invariant: previous edge was facing CCW in the eyes of the player
+    function is_upwards_backtrack(edge) {
+        var is_right_turn = right_turn(player.point, edge.start, edge.end);
+        var line_angle = find_angle(player.point, edge.start, edge.end) - 90;
+        return is_right_turn && line_angle > 0 && line_angle < 90;
+    }
+
+    var ignore_stack = [];
+    function upwards_backtrack(edge) {
+        // If we emerge from the upwards backtrack, upwards_backtrack_mode = false
+        var prev_edge = stack[stack.length-1];
+        var visibility_ray = new Edge(player.point, prev_edge.end);
+        var intersection_with_ray = collision_with_ray(visibility_ray, edge);
+        if (intersection_with_ray && intersection_with_ray.onLine2) {
+            // Exit upwards backtrack mode
+            var new_edge_start = new Point(intersection_with_ray.x, intersection_with_ray.y);
+
+            // Degenerate case -- ignore
+            if (are_equal_points(new_edge_start, prev_edge.end)) {
+                return;
+            }
+            // Degenerate case -- ignore
+            // If the edge is going CW, push onto ingore stack & ignore
+            if (right_turn(player.point, edge.start, edge.end)) {
+                ignore_stack.push('ignore');
+                return;
+            }
+            // If ignore stack is nonempty, ignore and pop
+            if (ignore_stack.length != 0) {
+                ignore_stack.pop();
+                return;
+            }
+            var new_edge_end = edge.end;
+            upwards_backtrack_mode = false;
+            var partial_edge = new Edge(new_edge_start, new_edge_end);
+            new_edge_start.draw('pink');
+
+            var window_edge = new Edge(prev_edge.end, new_edge_start)
+
+            stack.push(window_edge);
+            stack.push(partial_edge);
+        }
+    }
+
+    function progress_algorithm(edge) {
+        var done_with_algo = false;
+        if (edge.end.x == first_right.end_x &&
+            edge.end.y == first_right.end_y) {
+            in_range = true;
+        }
+        if (in_range &&
+            edge.end.x == first_left.end_x &&
+            edge.end.y == first_left.end_y) {
+            done_with_algo = true; // Say the algorithm is done.
+        }
+        if (!in_range) {
+            return done_with_algo;
+        }
+
+        edge.draw('purple');
+
+        /* Determine which mode we are in */
+
+        // Detect upwards backtrack & ignore until done
+        // Add window when returning from an upwards backtrack
+        if (!upwards_backtrack_mode && is_upwards_backtrack(edge)) {
+            edge.draw('pink');
+            upwards_backtrack_mode = true;
+        } else {
+        }
+
+        /* Deal with cases */
+        if (upwards_backtrack_mode) {
+            upwards_backtrack(edge);
+        }
+        else {
+            stack.push(edge);
+        }
+
+        // Detect downwards backtrack & pop until stack[-1] is visible
+        // If we cross a window (if the intersection between edge and stack[-1] is on
+        // both lines), enter upwards backtrack mode.
+
+        // Detect downwards backtrack & pup until stack[-1] is visible
+
+        return done_with_algo;
+    }
+
+    while (true) {
+        edge = edges[i];
+        result = progress_algorithm(edge);
+
+        i = (i + 1) % edges.length;
+        if (result == true) {
+            break;
+        }
+    }
+
+    var last_point = new Point(first_left.x, first_left.y);
+
+    draw_point(last_point.x, last_point.y, 'orange');
+    stack.push(new Edge(stack[stack.length-1].end, last_point));
+
+    var final_points = [];
+    final_points.push([stack[0].start.x, stack[0].start.y]);
+    stack.forEach(function(edge) {
+        final_points.push([edge.end.x, edge.end.y]);
     });
     var visibility = new Polygon(html_id, final_points);
     return visibility;
@@ -563,7 +713,7 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 
 function main() {
-    var x_offset = -00;
+    var x_offset = -100;
     var y_offset = 0;
     var maze = new Maze([ // don't ask me how i made this
         [x_offset+486, y_offset+126],
@@ -614,25 +764,11 @@ function main() {
         [x_offset+229, 191],
     ]);
     var maze = new Maze([
-        [x_offset+286, 345],
-        [x_offset+335, 240],
-        [x_offset+239, 51],
-        [x_offset+279, 228],
-        [x_offset+209, 202],
-    ]);
-    var maze = new Maze([
         [x_offset+185, 275],
         [x_offset+221, 189],
         [x_offset+167, 145],
         [x_offset+215, 104],
         [x_offset+115, 113],
-    ]);
-    var maze = new Maze([
-        [x_offset+349, 321],
-        [x_offset+518, 46],
-        [x_offset+53, 42],
-        [x_offset+431, 87],
-        [x_offset+321, 123],
     ]);
     var maze = new Maze([
         [x_offset+522, 236],
@@ -646,24 +782,19 @@ function main() {
         [x_offset+367, 154],
         [x_offset+359, 235],
     ]);
-    */
     var maze = new Maze([
-            /*
-        [x_offset+344, 236],
-        [x_offset+315, 230],
-        [x_offset+310, 151],
-        */
+        //[x_offset+344, 236],
+        //[x_offset+315, 230],
+        //[x_offset+310, 151],
         [x_offset+354, 114],
         [x_offset+526, 116],
         [x_offset+559, 175],
         [x_offset+522, 214],
-        /*
-        [x_offset+514, 152],
-        [x_offset+365, 134],
-        [x_offset+335, 201],
-        [x_offset+392, 202],
-        [x_offset+421, 255],
-        */
+        //[x_offset+514, 152],
+        //[x_offset+365, 134],
+        //[x_offset+335, 201],
+        //[x_offset+392, 202],
+        //[x_offset+421, 255],
         [x_offset+454, 270],
         [x_offset+578, 256],
         [x_offset+589, 112],
@@ -673,6 +804,39 @@ function main() {
         [x_offset+290, 257],
         [x_offset+414, 300],
     ]);
+    */
+    
+    var maze = new Maze([
+        [x_offset+397, 134],
+        [x_offset+417, 135],
+        [x_offset+444, 140],
+        [x_offset+514, 163],
+        [x_offset+561, 180],
+        [x_offset+586, 248],
+        [x_offset+588, 319],
+        [x_offset+551, 349],
+        [x_offset+495, 366],
+        [x_offset+393, 346],
+        [x_offset+294, 319],
+        [x_offset+259, 65],
+        [x_offset+500, 55],
+        [x_offset+216, 55],
+        [x_offset+209, 155],
+        [x_offset+220, 286],
+        [x_offset+247, 340],
+        [x_offset+390, 380],
+        [x_offset+481, 396],
+        [x_offset+584, 374],
+        [x_offset+638, 307],
+        [x_offset+620, 231],
+        [x_offset+602, 175],
+        [x_offset+519, 136],
+        [x_offset+413, 99],
+        [x_offset+321, 96],
+        [x_offset+307, 160],
+        [x_offset+375, 286],
+    ]);
+
     
     maze.start = maze.points[0];
     //maze.end = maze.points[14];
@@ -684,15 +848,15 @@ function main() {
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(471, 192);
-    player.angle = 45;
+    player.move_to(199, 147);
+    player.angle = 18;
 
     player.draw();
     $('#end').click(function(e) {
         alert(":)");
     });
     var onclick = function(e) {
-        if (dragging) {
+        if (true || dragging) {
             $('.drawn_point').remove();
             $('line').remove();
             var x = e.offsetX;
@@ -704,7 +868,7 @@ function main() {
             var visibility = visibility_polygon(player, maze.polygon, 'visibility');
             visibility.draw();
 
-            var lightbulb = true; // full 360 degree radius of vision
+            var lightbulb = false; // full 360 degree radius of vision
             if (lightbulb) {
                 player.angle += 90;
 
@@ -725,11 +889,11 @@ function main() {
     };
     var visibility = visibility_polygon(player, maze.polygon, 'visibility');
     visibility.draw();
-    /*
+
     $('#maze').click(onclick);
     $('#visibility').click(onclick);
-    */
 
+    /*
     dragging = false;
     $('polygon').mousedown(function(e) {dragging = true;onclick(e);})
                 .mousemove(onclick)
@@ -737,6 +901,7 @@ function main() {
     $('#player').mousedown(function(e) {dragging = true;})
                 .mousemove(onclick) 
                 .mouseup(function(e) {dragging = false;console.log('PLAYER');});
+    */
 }
 
 

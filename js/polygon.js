@@ -49,15 +49,5 @@ var Polygon = function(id, points) {
         });
         $('#'+self.id).attr('points', points_str);
     };
-
-    this.edge_with_this_point = function(point) {
-        var correct_edge = null;
-        self.edges.forEach(function(edge) {
-            if (is_on_segment(point, edge)) {
-                correct_edge = edge;
-            }
-        });
-        return correct_edge;
-    };
 }
 
