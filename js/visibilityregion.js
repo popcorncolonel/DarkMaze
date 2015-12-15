@@ -456,12 +456,30 @@ function visibility_polygon(player, polygon, html_id)
     var in_range = false;
 
     var upwards_backtrack_mode = false;
+    var downwards_backtrack_mode = false;
 
     // Invariant: previous edge was facing CCW in the eyes of the player
+    // Upwards backtrack is if (prev_edge, edge) is a right turn.
     function is_upwards_backtrack(edge) {
-        var is_right_turn = right_turn(player.point, edge.start, edge.end);
-        var line_angle = find_angle(player.point, edge.start, edge.end) - 90;
-        return is_right_turn && line_angle > 0 && line_angle < 90;
+        var is_backtrack = right_turn(player.point, edge.start, edge.end);
+        if (is_backtrack) {
+            var prev_edge = stack[stack.length-1];
+            var is_right_turn = right_turn(prev_edge.start, edge.start, edge.end);
+            return is_right_turn;
+        }
+        return false;
+    }
+
+    // Invariant: previous edge was facing CCW in the eyes of the player
+    // Downwards backtrack is if (prev_edge, edge) is a left turn!
+    function is_downwards_backtrack(edge) {
+        var is_backtrack = right_turn(player.point, edge.start, edge.end);
+        if (is_backtrack) {
+            var prev_edge = stack[stack.length-1];
+            var is_right_turn = right_turn(prev_edge.start, edge.start, edge.end);
+            return !is_right_turn;
+        }
+        return false;
     }
 
     var ignore_stack = [];
@@ -492,7 +510,6 @@ function visibility_polygon(player, polygon, html_id)
             var new_edge_end = edge.end;
             upwards_backtrack_mode = false;
             var partial_edge = new Edge(new_edge_start, new_edge_end);
-            new_edge_start.draw('pink');
 
             var window_edge = new Edge(prev_edge.end, new_edge_start)
 
@@ -501,10 +518,97 @@ function visibility_polygon(player, polygon, html_id)
         }
     }
 
+    // Returns false if covering_edge is between the point and the player
+    function is_visible_given(covering_edge, point) {
+        var intersection = checkLineIntersection(
+                player.point.x, player.point.y,
+                point.x, point.y,
+                covering_edge.start.x, covering_edge.start.y,
+                covering_edge.end.x, covering_edge.end.y
+        );
+        // "Line 2" is the covering edge.
+        var onLine2 = intersection.onLine2 ||
+                      are_equal_points(new Point(intersection.x, intersection.y), covering_edge.start) ||
+                      are_equal_points(new Point(intersection.x, intersection.y), covering_edge.end);
+        return !onLine2;
+    }
+
+    function edges_intersect(edge1, edge2) {
+        var intersection = checkLineIntersection(
+                edge1.start.x, edge1.start.y,
+                edge1.end.x, edge1.end.y,
+                edge2.start.x, edge2.start.y,
+                edge2.end.x, edge2.end.y
+        );
+        return intersection.onLine1 && intersection.onLine2;
+    }
+
+    function is_completely_covered(covering_edge, covered_edge) {
+        var covering_start = !is_visible_given(covering_edge, covered_edge.start);
+        var covering_end = !is_visible_given(covering_edge, covered_edge.end);
+        return covering_start && covering_end;
+    }
+
+    function add_partial_window(covering_edge, partially_covered_edge) {
+        var intersection = checkLineIntersection(
+                player.point.x, player.point.y,
+                covering_edge.end.x, covering_edge.end.y,
+                partially_covered_edge.start.x, partially_covered_edge.start.y,
+                partially_covered_edge.end.x, partially_covered_edge.end.y
+                );
+        var intersection_pt = new Point(intersection.x, intersection.y);
+        var partial_edge = new Edge(partially_covered_edge.start,
+                                      intersection_pt);
+        stack.pop();
+        stack.push(partial_edge);
+        var window_edge = new Edge(partial_edge.end, covering_edge.end);
+        stack.push(window_edge);
+    }
+
+    function handle_crossed_window(edge) {
+        var window_edge = stack.pop();
+        var intersection = checkLineIntersection(
+                edge.start.x, edge.start.y,
+                edge.end.x, edge.end.y,
+                window_edge.start.x, window_edge.start.y,
+                window_edge.end.x, window_edge.end.y
+        );
+        var intersection_pt = new Point(intersection.x, intersection.y);
+        var new_window = new Edge(window_edge.start, intersection_pt);
+        stack.push(new_window);
+        downwards_backtrack_mode = false;
+        upwards_backtrack_mode = true;
+    }
+
+    function downwards_backtrack(edge) {
+        // While stack[-1] is completely covered by edge, stack.pop()
+        while (is_completely_covered(edge, stack[stack.length-1])) {
+            // Then we crossed a window! => enter upward backtrack mode
+            if (edges_intersect(edge, stack[stack.length-1])) {
+                handle_crossed_window(edge);
+                return;
+            }
+            
+            var deleted_edge = stack.pop();
+            deleted_edge.draw('red');
+            console.log('i deleted stuff');
+        }
+        add_partial_window(edge, stack[stack.length-1]);
+
+        // At this point, stack[-1] is PARTIALLY COVERED, so we pop it off once, and add
+        //   a new partial window.
+        downwards_backtrack_mode = false;
+    }
+
     function progress_algorithm(edge) {
+        if (first_right.end_x == first_left.end_x &&
+            first_right.end_y == first_left.end_y) {
+            // Off-by-1 case
+            return true;
+        }
         var done_with_algo = false;
-        if (edge.end.x == first_right.end_x &&
-            edge.end.y == first_right.end_y) {
+        if (edge.start.x == first_right.end_x &&
+            edge.start.y == first_right.end_y) {
             in_range = true;
         }
         if (in_range &&
@@ -522,15 +626,25 @@ function visibility_polygon(player, polygon, html_id)
 
         // Detect upwards backtrack & ignore until done
         // Add window when returning from an upwards backtrack
-        if (!upwards_backtrack_mode && is_upwards_backtrack(edge)) {
-            edge.draw('pink');
+        if (!upwards_backtrack_mode &&
+              !downwards_backtrack_mode &&
+              is_upwards_backtrack(edge)) {
             upwards_backtrack_mode = true;
-        } else {
+            downwards_backtrack_mode = false;
+        } else if (!upwards_backtrack_mode &&
+                   !downwards_backtrack_mode &&
+                   is_downwards_backtrack(edge)) {
+            upwards_backtrack_mode = false;
+            downwards_backtrack_mode = true;
+            edge.draw('pink');
         }
 
         /* Deal with cases */
         if (upwards_backtrack_mode) {
             upwards_backtrack(edge);
+        }
+        else if (downwards_backtrack_mode) {
+            downwards_backtrack(edge);
         }
         else {
             stack.push(edge);
@@ -764,12 +878,36 @@ function main() {
         [x_offset+229, 191],
     ]);
     var maze = new Maze([
-        [x_offset+185, 275],
-        [x_offset+221, 189],
-        [x_offset+167, 145],
-        [x_offset+215, 104],
-        [x_offset+115, 113],
+        [x_offset+397, 134],
+        [x_offset+417, 135],
+        [x_offset+444, 140],
+        [x_offset+514, 163],
+        [x_offset+561, 180],
+        [x_offset+586, 248],
+        [x_offset+588, 319],
+        [x_offset+551, 349],
+        [x_offset+495, 366],
+        [x_offset+393, 346],
+        [x_offset+294, 319],
+        [x_offset+259, 65],
+        [x_offset+500, 55],
+        [x_offset+216, 55],
+        [x_offset+209, 155],
+        [x_offset+220, 286],
+        [x_offset+247, 340],
+        [x_offset+390, 380],
+        [x_offset+481, 396],
+        [x_offset+584, 374],
+        [x_offset+638, 307],
+        [x_offset+620, 231],
+        [x_offset+602, 175],
+        [x_offset+519, 136],
+        [x_offset+413, 99],
+        [x_offset+321, 96],
+        [x_offset+307, 160],
+        [x_offset+375, 286],
     ]);
+    
     var maze = new Maze([
         [x_offset+522, 236],
         [x_offset+556, 244],
@@ -804,39 +942,32 @@ function main() {
         [x_offset+290, 257],
         [x_offset+414, 300],
     ]);
+    var maze = new Maze([
+        [x_offset+424, 265],
+        [x_offset+445, 240],
+        [x_offset+445, 184],
+        [x_offset+503, 220],
+        [x_offset+525, 269],
+        [x_offset+611, 284],
+        [x_offset+489, 142],
+        [x_offset+360, 124],
+        [x_offset+279, 170],
+        [x_offset+373, 301],
+    ]);
+    var maze = new Maze([
+        [x_offset+522, 236],
+        [x_offset+556, 244],
+        [x_offset+573, 255],
+        [x_offset+754, 237],
+        [x_offset+445, 212],
+        [x_offset+543, 191],
+        [x_offset+447, 173],
+        [x_offset+524, 96],
+        [x_offset+367, 154],
+        [x_offset+359, 235],
+    ]);
     */
     
-    var maze = new Maze([
-        [x_offset+397, 134],
-        [x_offset+417, 135],
-        [x_offset+444, 140],
-        [x_offset+514, 163],
-        [x_offset+561, 180],
-        [x_offset+586, 248],
-        [x_offset+588, 319],
-        [x_offset+551, 349],
-        [x_offset+495, 366],
-        [x_offset+393, 346],
-        [x_offset+294, 319],
-        [x_offset+259, 65],
-        [x_offset+500, 55],
-        [x_offset+216, 55],
-        [x_offset+209, 155],
-        [x_offset+220, 286],
-        [x_offset+247, 340],
-        [x_offset+390, 380],
-        [x_offset+481, 396],
-        [x_offset+584, 374],
-        [x_offset+638, 307],
-        [x_offset+620, 231],
-        [x_offset+602, 175],
-        [x_offset+519, 136],
-        [x_offset+413, 99],
-        [x_offset+321, 96],
-        [x_offset+307, 160],
-        [x_offset+375, 286],
-    ]);
-
     
     maze.start = maze.points[0];
     //maze.end = maze.points[14];
@@ -848,8 +979,8 @@ function main() {
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(199, 147);
-    player.angle = 18;
+    player.move_to(432, 233);
+    player.angle = 235;
 
     player.draw();
     $('#end').click(function(e) {
