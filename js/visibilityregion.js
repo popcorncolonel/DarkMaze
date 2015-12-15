@@ -168,7 +168,7 @@ function is_visible(player, edge, point, pivot_pt) {
 }
 
 // Gets the collision with the "infinite" ray defined by a segment (start/end determine direction)
-function collision_with_ray(ray, edge) {
+function collision_with_ray(ray, edge, upper_bound) {
     var x = ray.start.x;
     var y = ray.start.y;
 
@@ -176,6 +176,8 @@ function collision_with_ray(ray, edge) {
 
     // Minus 90 because HTML5 orients angles vertical, and Math.cos expects horiz
     var angle_rads = (angle-90) * Math.PI / 180.0;
+
+
     // Hack - draw a long (but finite) "ray" from the player in
     // the direction of some specified angle to collide with all
     // the edges of the polygon.
@@ -183,6 +185,15 @@ function collision_with_ray(ray, edge) {
         x: x + 5000*Math.cos(angle_rads),
         y: y + 5000*Math.sin(angle_rads)
     };
+
+    if (upper_bound) {
+        var intersection = checkLineIntersection(
+            x, y,
+            ray_endpt.x, ray_endpt.y,
+            upper_bound.start.x, upper_bound.start.y,
+            upper_bound.end.x, upper_bound.end.y);
+        ray_endpt = intersection;
+    }
 
     var intersection = checkLineIntersection( // O(1)
             x, y,
@@ -286,8 +297,6 @@ function visibility_polygon(player, polygon, html_id)
             deleted_edge = edge_stack.pop();
             deleted_point = stack.pop();
 
-            deleted_point.draw('red');
-            deleted_edge.draw('red');
             console.log('i deleted stuff');
         }
         console.log('backtracking.....');
@@ -440,7 +449,6 @@ function visibility_polygon(player, polygon, html_id)
     // first point to the right
     var first_right = collision_with_polygon(player,
              (player.angle + player.radius_of_visibility / 2) % 360, polygon);
-    draw_point(first_right.x, first_right.y, 'blue');
 
     // first point to the left (end of the visibility polygon
     var first_left = collision_with_polygon(player,
@@ -485,12 +493,14 @@ function visibility_polygon(player, polygon, html_id)
     }
 
     var ignore_stack = [];
-    function upwards_backtrack(edge) {
+    function upwards_backtrack(edge, upper_bound) {
         // If we emerge from the upwards backtrack, upwards_backtrack_mode = false
         var prev_edge = stack[stack.length-1];
         var visibility_ray = new Edge(player.point, prev_edge.end);
-        var intersection_with_ray = collision_with_ray(visibility_ray, edge);
-        if (intersection_with_ray && intersection_with_ray.onLine2) {
+        var intersection_with_ray = collision_with_ray(visibility_ray, edge, upper_bound);
+        // onLine1 to check for the upper bound
+        // onLine2 to make sure it's an actual window
+        if (intersection_with_ray && intersection_with_ray.onLine2 && intersection_with_ray.onLine1) {
             // Exit upwards backtrack mode
             var new_edge_start = new Point(intersection_with_ray.x, intersection_with_ray.y);
 
@@ -509,14 +519,18 @@ function visibility_polygon(player, polygon, html_id)
                 ignore_stack.pop();
                 return;
             }
+
             var new_edge_end = edge.end;
-            upwards_backtrack_mode = false;
             var partial_edge = new Edge(new_edge_start, new_edge_end);
 
-            var window_edge = new Edge(prev_edge.end, new_edge_start)
+            var window_edge = new Edge(prev_edge.end, new_edge_start);
+            window_edge.is_window = true;
 
+            backtracking_edge = null;
             stack.push(window_edge);
             stack.push(partial_edge);
+
+            upwards_backtrack_mode = false;
         }
     }
 
@@ -563,10 +577,12 @@ function visibility_polygon(player, polygon, html_id)
                                       intersection_pt);
         stack.pop();
         var window_edge = new Edge(partial_edge.end, covering_edge.end);
+        window_edge.is_window = true;
         stack.push(partial_edge);
         stack.push(window_edge);
     }
 
+    var backtracking_edge = null;
     function handle_crossed_window(edge) {
         var window_edge = stack.pop();
         var intersection = checkLineIntersection(
@@ -577,27 +593,29 @@ function visibility_polygon(player, polygon, html_id)
         );
         var intersection_pt = new Point(intersection.x, intersection.y);
         var new_window = new Edge(window_edge.start, intersection_pt);
-        stack.push(new_window);
+        new_window.is_window = true;
+        //stack.push(new_window); // Don't push because it will eventually be pushed correctly
         downwards_backtrack_mode = false;
         upwards_backtrack_mode = true;
-        console.log('crossed window');
-        new_window.draw('cyan');
+        backtracking_edge = edge;
     }
 
     // Invariant: edge is a downwards backtrack.
     function set_backtrack_mode(edge, next_edge) {
-        var window_edge = stack[stack.length-1];
-        if (right_turn(edge.start, edge.end, next_edge.end)) {
+        backtracking_edge = edge;
+        if (right_turn(player.point, edge.end, next_edge.end)) {
+            // case 2 (let the logic in progress_algorithm handle it)
+            backtracking_edge = next_edge;
+            downwards_backtrack_mode = true;
+        }
+        else if (right_turn(edge.start, edge.end, next_edge.end)) {
             // case 1
             downwards_backtrack_mode = false;
         }
-        else if (right_turn(window_edge.start, window_edge.end, next_edge.end)) {
-            // case 3
-            downwards_backtrack_mode = true;
-        }
         else {
-            // case 2
-            downwards_backtrack_mode = false;
+            // case 3
+            backtracking_edge = null;
+            downwards_backtrack_mode = true;
         }
     }
 
@@ -611,10 +629,6 @@ function visibility_polygon(player, polygon, html_id)
             }
             
             var deleted_edge = stack.pop();
-            edge.draw('orange');
-            deleted_edge.start.draw('red');
-            deleted_edge.end.draw('red');
-            console.log('i deleted stuff');
         }
         add_partial_window(edge, stack[stack.length-1]);
 
@@ -644,7 +658,6 @@ function visibility_polygon(player, polygon, html_id)
             return done_with_algo;
         }
 
-        edge.draw('purple');
 
         /* Determine which mode we are in */
 
@@ -660,20 +673,20 @@ function visibility_polygon(player, polygon, html_id)
                    is_downwards_backtrack(edge)) {
             upwards_backtrack_mode = false;
             downwards_backtrack_mode = true;
-            edge.draw('pink');
         } else if (downwards_backtrack_mode) {
             // Then we are in case 3 of "how can we continue?"
         }
 
         /* Deal with cases */
         if (upwards_backtrack_mode) {
-            upwards_backtrack(edge);
+            //upwards_backtrack(edge);
+            upwards_backtrack(edge, backtracking_edge);
         }
         else if (downwards_backtrack_mode) {
             downwards_backtrack(edge);
         }
         else {
-            edge.draw('green');
+            backtracking_edge = null;
             stack.push(edge);
         }
 
@@ -698,7 +711,6 @@ function visibility_polygon(player, polygon, html_id)
 
     var last_point = new Point(first_left.x, first_left.y);
 
-    draw_point(last_point.x, last_point.y, 'orange');
     stack.push(new Edge(stack[stack.length-1].end, last_point));
 
     var final_points = [];
@@ -854,8 +866,9 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 
 function main() {
-    var x_offset = -100;
-    var y_offset = 0;
+    var x_offset = 20;
+    var y_offset = 20;
+    /*
     var maze = new Maze([ // don't ask me how i made this
         [x_offset+486, y_offset+126],
         [x_offset+423, y_offset+15],
@@ -890,119 +903,105 @@ function main() {
         [x_offset+542, y_offset+124],
         [x_offset+484, y_offset+32]
     ]);
-
-    /*
-    var maze = new Maze([
-        [x_offset+308, 322],
-        [x_offset+396, 178],
-        [x_offset+330, 153],
-        [x_offset+420, 106],
-        [x_offset+450, 76],
-        [x_offset+390, 86],
-        [x_offset+380, 96],
-        [x_offset+179, 92],
-        [x_offset+266, 144],
-        [x_offset+229, 191],
-    ]);
-    var maze = new Maze([
-        [x_offset+397, 134],
-        [x_offset+417, 135],
-        [x_offset+444, 140],
-        [x_offset+514, 163],
-        [x_offset+561, 180],
-        [x_offset+586, 248],
-        [x_offset+588, 319],
-        [x_offset+551, 349],
-        [x_offset+495, 366],
-        [x_offset+393, 346],
-        [x_offset+294, 319],
-        [x_offset+259, 65],
-        [x_offset+500, 55],
-        [x_offset+216, 55],
-        [x_offset+209, 155],
-        [x_offset+220, 286],
-        [x_offset+247, 340],
-        [x_offset+390, 380],
-        [x_offset+481, 396],
-        [x_offset+584, 374],
-        [x_offset+638, 307],
-        [x_offset+620, 231],
-        [x_offset+602, 175],
-        [x_offset+519, 136],
-        [x_offset+413, 99],
-        [x_offset+321, 96],
-        [x_offset+307, 160],
-        [x_offset+375, 286],
-    ]);
-    
-    var maze = new Maze([
-        [x_offset+522, 236],
-        [x_offset+556, 244],
-        [x_offset+573, 255],
-        [x_offset+754, 237],
-        [x_offset+445, 212],
-        [x_offset+543, 191],
-        [x_offset+447, 173],
-        [x_offset+524, 96],
-        [x_offset+367, 154],
-        [x_offset+359, 235],
-    ]);
-    var maze = new Maze([
-        //[x_offset+344, 236],
-        //[x_offset+315, 230],
-        //[x_offset+310, 151],
-        [x_offset+354, 114],
-        [x_offset+526, 116],
-        [x_offset+559, 175],
-        [x_offset+522, 214],
-        //[x_offset+514, 152],
-        //[x_offset+365, 134],
-        //[x_offset+335, 201],
-        //[x_offset+392, 202],
-        //[x_offset+421, 255],
-        [x_offset+454, 270],
-        [x_offset+578, 256],
-        [x_offset+589, 112],
-        [x_offset+453, 72],
-        [x_offset+301, 95],
-        [x_offset+243, 160],
-        [x_offset+290, 257],
-        [x_offset+414, 300],
-    ]);
-    var maze = new Maze([
-        [x_offset+424, 265],
-        [x_offset+445, 240],
-        [x_offset+445, 184],
-        [x_offset+503, 220],
-        [x_offset+525, 269],
-        [x_offset+611, 284],
-        [x_offset+489, 142],
-        [x_offset+360, 124],
-        [x_offset+279, 170],
-        [x_offset+373, 301],
-    ]);
-    var maze = new Maze([
-        [x_offset+522, 236],
-        [x_offset+556, 244],
-        [x_offset+573, 255],
-        [x_offset+754, 237],
-        [x_offset+445, 212],
-        [x_offset+543, 191],
-        [x_offset+447, 173],
-        [x_offset+524, 96],
-        [x_offset+367, 154],
-        [x_offset+359, 235],
-    ]);
     */
+
     
-    
+    var maze = new Maze([
+        [x_offset+171, y_offset+386],
+        [x_offset+187, y_offset+367],
+        [x_offset+195, y_offset+345],
+        [x_offset+224, y_offset+366],
+        [x_offset+269, y_offset+329],
+        [x_offset+246, y_offset+266],
+        [x_offset+293, y_offset+264],
+        [x_offset+323, y_offset+298],
+        [x_offset+273, y_offset+290],
+        [x_offset+305, y_offset+389],
+        [x_offset+319, y_offset+316],
+        [x_offset+362, y_offset+383],
+        [x_offset+417, y_offset+341],
+        [x_offset+441, y_offset+391],
+        [x_offset+467, y_offset+349],
+        [x_offset+539, y_offset+389],
+        [x_offset+539, y_offset+341],
+        [x_offset+579, y_offset+363],
+        [x_offset+552, y_offset+297],
+        [x_offset+611, y_offset+355],
+        [x_offset+587, y_offset+248],
+        [x_offset+684, y_offset+301],
+        [x_offset+628, y_offset+192],
+        [x_offset+754, y_offset+239],
+        [x_offset+719, y_offset+104],
+        [x_offset+819, y_offset+152],
+        [x_offset+775, y_offset+37],
+        [x_offset+643, y_offset+47],
+        [x_offset+668, y_offset+147],
+        [x_offset+557, y_offset+141],
+        [x_offset+517, y_offset+70],
+        [x_offset+563, y_offset+97],
+        [x_offset+591, y_offset+43],
+        [x_offset+448, y_offset+11],
+        [x_offset+399, y_offset+24],
+        [x_offset+477, y_offset+44],
+        [x_offset+534, y_offset+128],
+        [x_offset+548, y_offset+240],
+        [x_offset+514, y_offset+330],
+        [x_offset+423, y_offset+298],
+        [x_offset+433, y_offset+240],
+        [x_offset+486, y_offset+206],
+        [x_offset+486, y_offset+134],
+        [x_offset+373, y_offset+149],
+        [x_offset+415, y_offset+184],
+        [x_offset+407, y_offset+282],
+        [x_offset+277, y_offset+249],
+        [x_offset+242, y_offset+183],
+        [x_offset+283, y_offset+174],
+        [x_offset+296, y_offset+82],
+        [x_offset+309, y_offset+210],
+        [x_offset+380, y_offset+214],
+        [x_offset+307, y_offset+141],
+        [x_offset+434, y_offset+117],
+        [x_offset+287, y_offset+41],
+        [x_offset+279, y_offset+130],
+        [x_offset+178, y_offset+100],
+        [x_offset+126, y_offset+59],
+        [x_offset+193, y_offset+84],
+        [x_offset+170, y_offset+35],
+        [x_offset+14, y_offset+52],
+        [x_offset+11, y_offset+115],
+        [x_offset+7, y_offset+202],
+        [x_offset+55, y_offset+300],
+        [x_offset+62, y_offset+221],
+        [x_offset+15, y_offset+181],
+        [x_offset+39, y_offset+134],
+        [x_offset+88, y_offset+146],
+        [x_offset+66, y_offset+98],
+        [x_offset+132, y_offset+81],
+        [x_offset+241, y_offset+150],
+        [x_offset+189, y_offset+211],
+        [x_offset+236, y_offset+226],
+        [x_offset+238, y_offset+326],
+        [x_offset+151, y_offset+331],
+        [x_offset+130, y_offset+298],
+        [x_offset+168, y_offset+311],
+        [x_offset+213, y_offset+265],
+        [x_offset+124, y_offset+228],
+        [x_offset+92, y_offset+194],
+        [x_offset+130, y_offset+208],
+        [x_offset+194, y_offset+163],
+        [x_offset+95, y_offset+123],
+        [x_offset+154, y_offset+179],
+        [x_offset+33, y_offset+154],
+        [x_offset+151, y_offset+280],
+        [x_offset+77, y_offset+245],
+        [x_offset+143, y_offset+ 385],
+    ]);
+
     maze.start = maze.points[0];
     //maze.end = maze.points[14];
-    maze.scale(1.35);
+    maze.x_scale(1.2);
+    maze.y_scale(1.5);
     maze.draw(); 
-    maze.points.forEach(function(point) {
-        draw_point(point[0], point[1], 'grey');
-    });
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
@@ -1054,12 +1053,11 @@ function main() {
     */
 
     dragging = false;
-    $('polygon').mousedown(function(e) {dragging = true;onclick(e);})
-                .mousemove(onclick)
-                .mouseup(function(e) {dragging = false;console.log(dragging);});
+    $('polygon').mousedown(function(e) {dragging = true;})
+                .mousemove(onclick);
     $('#player').mousedown(function(e) {dragging = true;})
-                .mousemove(onclick) 
-                .mouseup(function(e) {dragging = false;console.log('PLAYER');});
+                .mousemove(onclick) ;
+    $('body').mouseup(function(e) {dragging=false;});
 }
 
 

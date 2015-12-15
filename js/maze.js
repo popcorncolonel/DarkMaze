@@ -3,6 +3,20 @@ var Maze = function(points) {
     this.points = points || [];
     this.polygon = new Polygon('maze', this.points);
     var self = this;
+    this.x_scale = function(factor) {
+        self.points = self.points.map(function(elt) {
+            elt[0] *= factor;
+            return elt;
+        });
+        self.polygon = new Polygon('maze', self.points);
+    };
+    this.y_scale = function(factor) {
+        self.points = self.points.map(function(elt) {
+            elt[1] *= factor;
+            return elt;
+        });
+        self.polygon = new Polygon('maze', self.points);
+    };
     this.scale = function(factor) {
         self.points = self.points.map(function(elt) {
             elt[0] *= factor;
