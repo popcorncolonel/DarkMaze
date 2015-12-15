@@ -78,6 +78,7 @@ function print_stack_trace() {
     console.log(call_stack);
 }
 
+/*
 function add_window_point(player, stack, edge_stack, point_through, edge) {
     var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
     var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
@@ -97,6 +98,7 @@ function add_window_point(player, stack, edge_stack, point_through, edge) {
 
     return pocket_emergence_pt;
 }
+*/
 
 // #law of cosines
 function find_angle(A,B,C) {
@@ -560,8 +562,8 @@ function visibility_polygon(player, polygon, html_id)
         var partial_edge = new Edge(partially_covered_edge.start,
                                       intersection_pt);
         stack.pop();
-        stack.push(partial_edge);
         var window_edge = new Edge(partial_edge.end, covering_edge.end);
+        stack.push(partial_edge);
         stack.push(window_edge);
     }
 
@@ -578,6 +580,25 @@ function visibility_polygon(player, polygon, html_id)
         stack.push(new_window);
         downwards_backtrack_mode = false;
         upwards_backtrack_mode = true;
+        console.log('crossed window');
+        new_window.draw('cyan');
+    }
+
+    // Invariant: edge is a downwards backtrack.
+    function set_backtrack_mode(edge, next_edge) {
+        var window_edge = stack[stack.length-1];
+        if (right_turn(edge.start, edge.end, next_edge.end)) {
+            // case 1
+            downwards_backtrack_mode = false;
+        }
+        else if (right_turn(window_edge.start, window_edge.end, next_edge.end)) {
+            // case 3
+            downwards_backtrack_mode = true;
+        }
+        else {
+            // case 2
+            downwards_backtrack_mode = false;
+        }
     }
 
     function downwards_backtrack(edge) {
@@ -590,14 +611,17 @@ function visibility_polygon(player, polygon, html_id)
             }
             
             var deleted_edge = stack.pop();
-            deleted_edge.draw('red');
+            edge.draw('orange');
+            deleted_edge.start.draw('red');
+            deleted_edge.end.draw('red');
             console.log('i deleted stuff');
         }
         add_partial_window(edge, stack[stack.length-1]);
 
         // At this point, stack[-1] is PARTIALLY COVERED, so we pop it off once, and add
         //   a new partial window.
-        downwards_backtrack_mode = false;
+        var next_edge = edges[(i+1) % edges.length];
+        set_backtrack_mode(edge, next_edge);
     }
 
     function progress_algorithm(edge) {
@@ -637,6 +661,8 @@ function visibility_polygon(player, polygon, html_id)
             upwards_backtrack_mode = false;
             downwards_backtrack_mode = true;
             edge.draw('pink');
+        } else if (downwards_backtrack_mode) {
+            // Then we are in case 3 of "how can we continue?"
         }
 
         /* Deal with cases */
@@ -647,6 +673,7 @@ function visibility_polygon(player, polygon, html_id)
             downwards_backtrack(edge);
         }
         else {
+            edge.draw('green');
             stack.push(edge);
         }
 
@@ -979,7 +1006,7 @@ function main() {
 
     var player = new Player(maze);
     player.move_to(player.x+0, player.y - 5);
-    player.move_to(432, 233);
+    player.move_to(793, 360);
     player.angle = 235;
 
     player.draw();
@@ -987,7 +1014,7 @@ function main() {
         alert(":)");
     });
     var onclick = function(e) {
-        if (true || dragging) {
+        if (dragging) {
             $('.drawn_point').remove();
             $('line').remove();
             var x = e.offsetX;
@@ -999,7 +1026,7 @@ function main() {
             var visibility = visibility_polygon(player, maze.polygon, 'visibility');
             visibility.draw();
 
-            var lightbulb = false; // full 360 degree radius of vision
+            var lightbulb = true; // full 360 degree radius of vision
             if (lightbulb) {
                 player.angle += 90;
 
@@ -1021,10 +1048,11 @@ function main() {
     var visibility = visibility_polygon(player, maze.polygon, 'visibility');
     visibility.draw();
 
+    /*
     $('#maze').click(onclick);
     $('#visibility').click(onclick);
+    */
 
-    /*
     dragging = false;
     $('polygon').mousedown(function(e) {dragging = true;onclick(e);})
                 .mousemove(onclick)
@@ -1032,7 +1060,6 @@ function main() {
     $('#player').mousedown(function(e) {dragging = true;})
                 .mousemove(onclick) 
                 .mouseup(function(e) {dragging = false;console.log('PLAYER');});
-    */
 }
 
 
