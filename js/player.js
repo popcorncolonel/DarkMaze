@@ -3,7 +3,7 @@ var Player = function(maze) {
     this.y = maze.start[1];
     this.point = new Point(this.x, this.y);
     this.clickradius = 1000;
-    this.radius_of_visibility = 92;
+    this.radius_of_visibility = 100;
     this.angle = 165;
     var self = this;
     this.draw = function() {
@@ -19,7 +19,7 @@ var Player = function(maze) {
         else {
             $('#clickcircle').attr('cx', cx);
             $('#clickcircle').attr('cy', cy);
-            $('#clickcircle').attr('stroke', 'green');
+            $('#clickcircle').attr('stroke', 'black');
             $('#clickcircle').attr('stroke-width', 4);
             $('#clickcircle').attr('r', self.clickradius);
         }

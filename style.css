@@ -6,14 +6,28 @@
     fill: yellow;
 }
 
+.clickable {
+    cursor: pointer;
+}
+
+.dragging {
+    cursor: move;
+}
+
+.shadow {
+    fill: grey;
+}
+
 .player {
     fill: green;
 }
 
 .clickregion {
+    /*
     stroke: green;
     stroke-width: 4px;
     fill: none;
+     */
 }
 
 .endpoint {

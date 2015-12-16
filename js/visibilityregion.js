@@ -297,6 +297,8 @@ function visibility_polygon(player, polygon, html_id)
             deleted_edge = edge_stack.pop();
             deleted_point = stack.pop();
 
+            deleted_point.draw('red');
+            deleted_edge.draw('red');
             console.log('i deleted stuff');
         }
         console.log('backtracking.....');
@@ -986,78 +988,120 @@ function main() {
         [x_offset+168, y_offset+311],
         [x_offset+213, y_offset+265],
         [x_offset+124, y_offset+228],
+        /*
         [x_offset+92, y_offset+194],
         [x_offset+130, y_offset+208],
         [x_offset+194, y_offset+163],
         [x_offset+95, y_offset+123],
         [x_offset+154, y_offset+179],
         [x_offset+33, y_offset+154],
+        */
         [x_offset+151, y_offset+280],
         [x_offset+77, y_offset+245],
         [x_offset+143, y_offset+ 385],
     ]);
 
     maze.start = maze.points[0];
-    //maze.end = maze.points[14];
+    maze.end = maze.points[63];
     maze.x_scale(1.2);
     maze.y_scale(1.5);
-    maze.draw(); 
+    //maze.draw(); 
 
     var player = new Player(maze);
-    player.move_to(player.x+0, player.y - 5);
-    player.move_to(793, 360);
+    player.move_to(980, 226);
     player.angle = 235;
 
     player.draw();
     $('#end').click(function(e) {
         alert(":)");
     });
+
+    function delete_old(elems) {
+        elems.forEach(function(elem) {
+            elem.remove();
+        });
+    }
+    function copy_visibility(color) {
+        color = color || "grey";
+        $('.visibility').each(function(index, element) {
+            var shape = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            shape.setAttribute("class", "shadow clickable");
+            shape.setAttribute("points", $(this).attr('points'));
+            $(shape).mousedown(onclick)
+                    .mousemove(ondrag);
+            $("svg").prepend(shape);
+            setTimeout(function() {
+                $(shape).fadeOut("slow");
+                setTimeout(function(){shape.remove()}, 500);
+            }, 5000)
+        });
+    }
+
     var onclick = function(e) {
+        $('.clickable').attr('style', 'cursor: move;');
+        dragging = true;
+        ondrag(e);
+    }
+    var ondrag = function(e) {
         if (dragging) {
-            $('.drawn_point').remove();
-            $('line').remove();
             var x = e.offsetX;
             var y = e.offsetY;
+            var dist = maze.polygon.distance_from(new Point(x, y));
+            if (dist < 2.5) {
+                return;
+            }
             if (is_valid_click(player, x, y)) {
                 player.move_to(x, y);
                 player.draw();
             }
+            copy_visibility();
+
             var visibility = visibility_polygon(player, maze.polygon, 'visibility');
             visibility.draw();
+            player.angle += 90;
 
-            var lightbulb = true; // full 360 degree radius of vision
-            if (lightbulb) {
-                player.angle += 90;
+            visibility = visibility_polygon(player, maze.polygon, 'visibility2');
+            visibility.draw();
+            player.angle += 90;
 
-                visibility = visibility_polygon(player, maze.polygon, 'visibility2');
-                visibility.draw();
-                player.angle += 90;
+            visibility = visibility_polygon(player, maze.polygon, 'visibility3');
+            visibility.draw();
+            player.angle += 90;
 
-                visibility = visibility_polygon(player, maze.polygon, 'visibility3');
-                visibility.draw();
-                player.angle += 90;
-
-                visibility = visibility_polygon(player, maze.polygon, 'visibility4');
-                visibility.draw();
-                player.angle += 90;
-                player.angle -= 360;
-            }
+            visibility = visibility_polygon(player, maze.polygon, 'visibility4');
+            visibility.draw();
+            player.angle += 90;
+            player.angle -= 360;
         }
     };
+    var onunclick = function(e) {
+        dragging = false;
+        $('.clickable').attr('style', 'cursor: click;');
+    }
+
     var visibility = visibility_polygon(player, maze.polygon, 'visibility');
     visibility.draw();
+    player.angle += 90;
 
-    /*
-    $('#maze').click(onclick);
-    $('#visibility').click(onclick);
-    */
+    visibility = visibility_polygon(player, maze.polygon, 'visibility2');
+    visibility.draw();
+    player.angle += 90;
+
+    visibility = visibility_polygon(player, maze.polygon, 'visibility3');
+    visibility.draw();
+    player.angle += 90;
+
+    visibility = visibility_polygon(player, maze.polygon, 'visibility4');
+    visibility.draw();
+    player.angle += 90;
+    player.angle -= 360;
 
     dragging = false;
-    $('polygon').mousedown(function(e) {dragging = true;})
-                .mousemove(onclick);
-    $('#player').mousedown(function(e) {dragging = true;})
-                .mousemove(onclick) ;
-    $('body').mouseup(function(e) {dragging=false;});
+    $('.visibility').mousedown(onclick)
+                    .mousemove(ondrag);
+    $('#player').mousedown(onclick)
+                .mousemove(ondrag);
+    $('body').mouseup(onunclick);
 }
 
 
