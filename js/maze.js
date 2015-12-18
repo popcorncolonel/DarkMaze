@@ -26,7 +26,7 @@ var Maze = function(points) {
         self.polygon = new Polygon('maze', self.points);
     };
     this.draw = function() {
-        self.polygon.draw();
+        //self.polygon.draw();
 
         // Draw end point.
         if (self.end) {
@@ -34,6 +34,7 @@ var Maze = function(points) {
             var cy = self.end[1];
             $('#end').attr('cx', cx);
             $('#end').attr('cy', cy);
+            $('#end').hide();
         }
     }
 }

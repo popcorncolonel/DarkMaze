@@ -22,18 +22,15 @@
     fill: green;
 }
 
-.clickregion {
-    /*
-    stroke: green;
-    stroke-width: 4px;
-    fill: none;
-     */
-}
-
 .endpoint {
     fill: red;
 }
 
 svg {
     background-color: black;
+}
+
+body {
+    background-color: black;
+    color: white;
 }

@@ -11,19 +11,6 @@ var Player = function(maze) {
         var cy = self.y;
         $('#player').attr('cx', cx);
         $('#player').attr('cy', cy);
-        if (self.radius_of_visibility < 360) {
-            $('#clickregion').attr('d', describeArc(cx, cy, self.clickradius,
-                       self.angle - self.radius_of_visibility/2.0,
-                       self.angle + self.radius_of_visibility/2.0));
-        }
-        else {
-            $('#clickcircle').attr('cx', cx);
-            $('#clickcircle').attr('cy', cy);
-            $('#clickcircle').attr('stroke', 'black');
-            $('#clickcircle').attr('stroke-width', 4);
-            $('#clickcircle').attr('r', self.clickradius);
-        }
-
     }
     this.move_to = function(x, y) {
         prev_x = self.x;

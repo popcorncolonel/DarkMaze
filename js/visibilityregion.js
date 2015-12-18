@@ -456,7 +456,13 @@ function visibility_polygon(player, polygon, html_id)
     var first_left = collision_with_polygon(player,
              (player.angle - player.radius_of_visibility / 2) % 360, polygon);
 
-    var first_collision_pt = new Point(first_right.x, first_right.y);
+    try {
+        var first_collision_pt = new Point(first_right.x, first_right.y);
+    } catch(e) {
+        // this happens sometimes. it's okay.
+        var visibility = new Polygon(html_id, []);
+        return visibility;
+    }
     stack.push(new Edge(player.point, first_collision_pt));
 
     stack.push(new Edge(first_collision_pt,
@@ -713,6 +719,16 @@ function visibility_polygon(player, polygon, html_id)
 
     var last_point = new Point(first_left.x, first_left.y);
 
+    /*
+    stack.forEach(function(edge) {
+        if (!edge.is_window) {
+            if (!are_equal_points(edge.start, player.point) &&
+                !are_equal_points(edge.start, player.point)) {
+                edge.draw('white');
+            }
+        }
+    });
+    */
     stack.push(new Edge(stack[stack.length-1].end, last_point));
 
     var final_points = [];
@@ -988,24 +1004,16 @@ function main() {
         [x_offset+168, y_offset+311],
         [x_offset+213, y_offset+265],
         [x_offset+124, y_offset+228],
-        /*
-        [x_offset+92, y_offset+194],
-        [x_offset+130, y_offset+208],
-        [x_offset+194, y_offset+163],
-        [x_offset+95, y_offset+123],
-        [x_offset+154, y_offset+179],
-        [x_offset+33, y_offset+154],
-        */
         [x_offset+151, y_offset+280],
         [x_offset+77, y_offset+245],
         [x_offset+143, y_offset+ 385],
     ]);
 
     maze.start = maze.points[0];
-    maze.end = maze.points[63];
+    maze.end = maze.points[51];
     maze.x_scale(1.2);
     maze.y_scale(1.5);
-    //maze.draw(); 
+    maze.draw(); 
 
     var player = new Player(maze);
     player.move_to(980, 226);
@@ -1037,6 +1045,19 @@ function main() {
         });
     }
 
+    var end_in_sight = false;
+    function draw_end_if_visible(polygon) {
+        var end_pt = new Point(maze.end[0], maze.end[1]);
+        if (!end_in_sight) {
+            polygon.points.forEach(function (point) {
+                if (are_equal_points(point, end_pt)) {
+                    $('#end').show()
+                    end_in_sight = true;
+                }
+            });
+        }
+    }
+
     var onclick = function(e) {
         $('.clickable').attr('style', 'cursor: move;');
         dragging = true;
@@ -1044,6 +1065,7 @@ function main() {
     }
     var ondrag = function(e) {
         if (dragging) {
+            $('line').remove();
             var x = e.offsetX;
             var y = e.offsetY;
             var dist = maze.polygon.distance_from(new Point(x, y));
@@ -1056,20 +1078,26 @@ function main() {
             }
             copy_visibility();
 
+            end_in_sight = false;
+            $('#end').hide()
             var visibility = visibility_polygon(player, maze.polygon, 'visibility');
             visibility.draw();
+            draw_end_if_visible(visibility);
             player.angle += 90;
 
             visibility = visibility_polygon(player, maze.polygon, 'visibility2');
             visibility.draw();
+            draw_end_if_visible(visibility);
             player.angle += 90;
 
             visibility = visibility_polygon(player, maze.polygon, 'visibility3');
             visibility.draw();
+            draw_end_if_visible(visibility);
             player.angle += 90;
 
             visibility = visibility_polygon(player, maze.polygon, 'visibility4');
             visibility.draw();
+            draw_end_if_visible(visibility);
             player.angle += 90;
             player.angle -= 360;
         }
@@ -1077,6 +1105,9 @@ function main() {
     var onunclick = function(e) {
         dragging = false;
         $('.clickable').attr('style', 'cursor: click;');
+        if (!end_in_sight) {
+            $('#end').hide();
+        }
     }
 
     var visibility = visibility_polygon(player, maze.polygon, 'visibility');
