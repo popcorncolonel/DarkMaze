@@ -1010,13 +1010,13 @@ function main() {
     ]);
 
     maze.start = maze.points[0];
-    maze.end = maze.points[51];
+    maze.end = maze.points[25];
     maze.x_scale(1.2);
     maze.y_scale(1.5);
     maze.draw(); 
 
     var player = new Player(maze);
-    player.move_to(980, 226);
+    player.move_to(77, 398);
     player.angle = 235;
 
     player.draw();
