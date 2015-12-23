@@ -54,6 +54,35 @@ function abs_diff(float1, float2) {
     return Math.abs(float1 - float2);
 }
 
+// linear time
+function point_in_polygon(polygon, point) {
+    var num_intersections = 0;
+    var on_polygon = false;
+    var ray = new Point(point.x+5000, point.y);
+    polygon.edges.forEach(function(edge) {
+        if (is_on_segment(point, edge)) {
+            on_polygon = true;
+        }
+        var intersection = checkLineIntersection(
+            point.x, point.y,
+            ray.x, ray.y,
+            edge.start.x, edge.start.y,
+            edge.end.x, edge.end.y);
+        if (intersection.onLine2 && intersection.onLine1) {
+            num_intersections += 1;
+        }
+    });
+    if (on_polygon) {
+        return false;
+    }
+    if (num_intersections % 2 == 1) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
 function are_equal_points(point1, point2) {
     if (abs_diff(point1.x, point2.x) < 0.00001) {
         if (abs_diff(point1.y, point2.y) < 0.00001) {
@@ -714,6 +743,7 @@ function visibility_polygon(player, polygon, html_id)
     var last_point = new Point(first_left.x, first_left.y);
 
     stack.map(function(edge) {
+        var color = 'white';
         if (!edge.is_window) {
             if (!are_equal_points(edge.start, player.point) &&
                 !are_equal_points(edge.start, player.point)) {
@@ -721,11 +751,11 @@ function visibility_polygon(player, polygon, html_id)
                     if (!are_equal_points(edge.end, last_point)) {
                         //edge.end = last_point;
                         var chopped_edge = new Edge(edge.start, last_point);
-                        chopped_edge.draw('white');
+                        chopped_edge.draw(color);
                         return chopped_edge;
                     }
                 }
-                edge.draw('white');
+                edge.draw(color);
             }
         }
         return edge;
@@ -823,23 +853,10 @@ function draw_edge(edge, color) {
     shape.setAttribute("y1", edge.start.y);
     shape.setAttribute("x2", edge.end.x);
     shape.setAttribute("y2", edge.end.y);
-    shape.setAttribute("style", "stroke-width:3");
+    shape.setAttribute("style", "stroke-width:4");
     shape.setAttribute("stroke", color);
     $("svg").append(shape);
 }
-
-// For debugging
-function draw_line(x1, y1, x2, y2) {
-    var shape = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    shape.setAttribute("x1", x1);
-    shape.setAttribute("y1", y1);
-    shape.setAttribute("x2", x2);
-    shape.setAttribute("y2", y2);
-    shape.setAttribute("stroke", "pink");
-    shape.setAttribute("style", "stroke-width:2");
-    $("svg").append(shape);
-}
-
 
 // If the lines intersect, the result contains the x and y
 // of the intersection (treating the lines as infinite) and booleans for whether
@@ -1116,11 +1133,13 @@ function main() {
         return new Polygon('visibility', points);
     }
 
-    function dist_from_visibility(x, y) {
-        var retval = visibility.distance_from(new Point(x, y));
+    // Invariant: point is NOT in polygon
+    function closest_point_on_polygon(polygon, point) {
+        var retval = polygon.distance_from(point);
         var dist = retval[0];
         var closest_edge = retval[1];
-        return dist;
+        var closest_pt = retval[2];
+        return closest_pt;
     }
 
     var onclick = function(e) {
@@ -1132,12 +1151,22 @@ function main() {
         if (dragging) {
             var x = e.offsetX;
             var y = e.offsetY;
-            var dist = dist_from_visibility(x, y);
-            if (dist < 2.5) {
+            var class_string = e.target.getAttribute('class');
+            if (class_string && (
+                class_string.indexOf('visibility') > -1 || 
+                class_string.indexOf('player') > -1
+                )) {
+                // then we're good
+            } else {
+                // if we're outside of the polygon, we need to find the closest point
+                // on the polygon to x, y AND SET x,y TO THAT
+                var closest_point = closest_point_on_polygon(visibility, new Point(x, y));
+                x = closest_point.x;
+                y = closest_point.y;
+            }
+            if (!point_in_polygon(maze.polygon, new Point(x, y))) {
                 return;
             }
-            $('.drawn_point').remove();
-            $('line').remove();
             if (is_valid_click(player, x, y)) {
                 player.move_to(x, y);
                 player.draw();
@@ -1146,6 +1175,8 @@ function main() {
             copy_visibility();
             end_in_sight = false;
             $('#end').hide()
+            $('.drawn_point').remove();
+            $('line').remove();
             draw_visibility();
         }
     };
@@ -1167,9 +1198,9 @@ function main() {
                 .mousemove(ondrag);
     $('body').mouseup(onunclick);
     */
-    $('body').mousedown(onclick)
-             .mousemove(ondrag)
-             .mouseup(onunclick);
+    $('svg').mousedown(onclick)
+            .mousemove(ondrag);
+    $('body').mouseup(onunclick);
 
 }
 
