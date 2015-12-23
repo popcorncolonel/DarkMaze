@@ -1019,7 +1019,7 @@ function main() {
     var player = new Player(maze);
     var start_point = new Point(77, 398);
     player.move_to(start_point.x, start_point.y);
-    player.angle = 235;
+    //player.angle = 235;
 
     player.draw();
     $('#end').click(function(e) {
@@ -1033,7 +1033,7 @@ function main() {
     }
     function copy_visibility(color) {
         color = color || "grey";
-        $('.visibility').each(function(index, element) {
+        $('#visibility').each(function(index, element) {
             var shape = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
             shape.setAttribute("class", "shadow clickable");
             shape.setAttribute("points", $(this).attr('points'));
@@ -1065,6 +1065,9 @@ function main() {
     var visibility3;
     var visibility4;
 
+    // Master polygon - stitched together sub-visibility poly's
+    var visibility;
+
     function draw_visibility() {
         visibility1 = visibility_polygon(player, maze.polygon, 'visibility');
         if (visibility1.points.length == 0) {
@@ -1079,48 +1082,45 @@ function main() {
             draw_visibility();
             return;
         }
-        player.angle += 90;
+        player.angle = 270;
 
         visibility2 = visibility_polygon(player, maze.polygon, 'visibility2');
-        player.angle += 90;
+        player.angle -= 90;
 
         visibility3 = visibility_polygon(player, maze.polygon, 'visibility3');
-        player.angle += 90;
+        player.angle -= 90;
 
         visibility4 = visibility_polygon(player, maze.polygon, 'visibility4');
-        player.angle += 90;
-        player.angle -= 360;
+        player.angle -= 90;
+        player.angle += 360;
 
-        visibility1.draw();
-        draw_end_if_visible(visibility1);
-        visibility2.draw();
-        draw_end_if_visible(visibility2);
-        visibility3.draw();
-        draw_end_if_visible(visibility3);
-        visibility4.draw();
-        draw_end_if_visible(visibility4);
+        visibility = stitch_visibility();
+        draw_end_if_visible(visibility);
+        visibility.draw();
     }
 
     // Combines the 4 visibility polygons into one big, real visibility polygon.
     function stitch_visibility() {
-    }
-
-    function get_dist_from_poly(polygon, x, y) {
-        var retval = polygon.distance_from(new Point(x, y));
-        var dist = retval[0];
-        var closest_edge = retval[1];
-        return dist;
+        var points = [];
+        var polygons = [visibility1, visibility2, visibility3, visibility4];
+        polygons.forEach(function(polygon) {
+            polygon.points.forEach(function(point) {
+                if (are_equal_points(point, player.point)) {
+                        return;
+                    }
+                if (point) {
+                    points.push([point.x, point.y]);
+                }
+            });
+        });
+        return new Polygon('visibility', points);
     }
 
     function dist_from_visibility(x, y) {
-        var abs_min = 10000;
-
-        var this_dist = get_dist_from_poly(maze.polygon, x, y);
-        if (this_dist < abs_min) {
-            abs_min = this_dist;
-        }
-
-        return abs_min;
+        var retval = visibility.distance_from(new Point(x, y));
+        var dist = retval[0];
+        var closest_edge = retval[1];
+        return dist;
     }
 
     var onclick = function(e) {
@@ -1161,7 +1161,7 @@ function main() {
 
     dragging = false;
     /*
-    $('.visibility').mousedown(onclick)
+    $('#visibility').mousedown(onclick)
                     .mousemove(ondrag);
     $('#player').mousedown(onclick)
                 .mousemove(ondrag);
