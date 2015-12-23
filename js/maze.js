@@ -30,8 +30,8 @@ var Maze = function(points) {
 
         // Draw end point.
         if (self.end) {
-            var cx = self.end[0];
-            var cy = self.end[1];
+            var cx = self.end.x;
+            var cy = self.end.y;
             $('#end').attr('cx', cx);
             $('#end').attr('cy', cy);
             $('#end').hide();

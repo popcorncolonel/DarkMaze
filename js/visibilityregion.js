@@ -55,6 +55,7 @@ function abs_diff(float1, float2) {
 }
 
 // linear time
+// http://www.cs.tufts.edu/comp/163/lectures/163-chapter01.pdf
 function point_in_polygon(polygon, point) {
     var num_intersections = 0;
     var on_polygon = false;
@@ -106,28 +107,6 @@ function print_stack_trace() {
     call_stack.splice(0, 1);
     console.log(call_stack);
 }
-
-/*
-function add_window_point(player, stack, edge_stack, point_through, edge) {
-    var pocket_emergence_pt = collision_with_edge(player, point_through, edge);
-    var pocket_edge = new Edge(pocket_emergence_pt, edge.end);
-
-    var intersection = checkLineIntersection(
-            player.point.x, player.point.y,
-            point_through.x, point_through.y,
-            edge.start.x, edge.start.y,
-            edge.end.x, edge.end.y);
-
-    if (intersection.onLine2) {
-        edge_stack.push(pocket_edge);
-        stack.push(pocket_emergence_pt);
-    }
-    else {
-    }
-
-    return pocket_emergence_pt;
-}
-*/
 
 // #law of cosines
 function find_angle(A,B,C) {
@@ -262,214 +241,7 @@ function collision_with_edge(player, point_through, edge) {
     return new Point(intersection.x, intersection.y);
 }
 
-// Assume the polygon is drawn in CCW direction
-/*
-function visibility_polygon(player, polygon, html_id)
-{
-    // When a point is pushed on the (point) stack, the edge (starting at that point,
-    // ending at the NEXT point in the iteration) is pushed on the edge stack.
-    //   Invariant: stack.length == edge_stack.length.
-    var edge_stack = []; 
-    var stack = [];
-
-    // first point to the right
-    var first_right = collision_with_polygon(player,
-             (player.angle + player.radius_of_visibility / 2) % 360, polygon);
-    draw_point(first_right.x, first_right.y, 'blue');
-
-    // first point to the left (end of the visibility polygon
-    var first_left = collision_with_polygon(player,
-             (player.angle - player.radius_of_visibility / 2) % 360, polygon);
-
-    var first_collision_pt = new Point(first_right.x, first_right.y);
-    stack.push(player.point);
-    edge_stack.push(new Edge(player.point, first_collision_pt));
-
-    stack.push(first_collision_pt);
-    edge_stack.push(new Edge(first_collision_pt,
-                             new Point(first_right.end_x, first_right.end_y)
-                    ));
-
-    var i = 1;
-    var points = polygon.points.slice(); // slice for copy of array
-    var in_range = false;
-    // prev_point is the previous point on the polygon traversal (not the stack)
-    var prev_point = points[0];
-    // May walk around the polygon twice (if endpoint comes before startpoint)
-    function add_window_points(point, pivot_pt) {
-        // There are 2 kinds of window points that need to be added: 
-        //   1) Where the polygon traversal just emerged from a pocket, and we need to
-        //      the edge satisfying: s.start is not visible and s.end is visible
-        //   2) When the polygon traversal just back_tracked and we need to add an edge 
-        //      that goes through the end of the downwards back-track and collides with another
-        //      polygon edge
-
-        // Case 1 - Traversal just emerged from a pocket
-        if (!are_equal_points(prev_point, pivot_pt)) {
-            if (right_turn(player.point,
-                           pivot_pt,
-                           prev_point))
-            {
-                add_window_point(player, stack, edge_stack, pivot_pt,
-                                 new Edge(prev_point, point));
-            }
-        }
-    }
-
-    function backtrack(last_added_edge) {
-        var deleted_edge = null;
-        while (stack.length > 2 &&
-               !is_visible(player,
-                           last_added_edge,
-                           stack[stack.length-1], stack[stack.length-2]))
-        {
-            deleted_edge = edge_stack.pop();
-            deleted_point = stack.pop();
-
-            deleted_point.draw('red');
-            deleted_edge.draw('red');
-            console.log('i deleted stuff');
-        }
-        console.log('backtracking.....');
-        var edge = edge_stack[stack.length-1];
-
-        var upwards = upwards_backtrack(player, last_added_edge);
-        upwards = upwards || upwards_backtrack(player, edge);
-        if (!upwards) {
-            var point_through = last_added_edge.end;
-            // if downwards valid backtrack, point_through -> last_added_edge.start
-            if (are_equal_points(edge.start, last_added_edge.start) && 
-                downwards_backtrack_is_visible(player, edge, stack[stack.length-1], stack[stack.length-2])) {
-                point_through = last_added_edge.start;
-            }
-            
-            var emergence_pt = add_window_point(player, stack, edge_stack,
-                             point_through, edge);
-        }
-        else {
-        }
-    }
-
-    function progress_algorithm(point) {
-        var done_with_algo = false;
-        if (point.x == first_right.end_x &&
-            point.y == first_right.end_y) {
-            prev_point = new Point(first_right.x, first_right.y);
-            in_range = true;
-        }
-        if (in_range && point.x == first_left.end_x && point.y == first_left.end_y) {
-            // Try to add a window one last time
-            var pivot_pt = stack[stack.length-1];
-            if (right_turn(player.point, pivot_pt, prev_point) &&
-               !right_turn(player.point, pivot_pt, point)) {
-                var last_edge = new Edge(prev_point, point);
-                add_window_point(player, stack, edge_stack, pivot_pt,
-                                 last_edge);
-            }
-            done_with_algo = true; // say the algorithm is done.
-            in_range = false;
-            return done_with_algo;
-        }
-
-        // in range => this is between first_right and first_left on the poly.
-        if (in_range) {
-            if (in_consideration(player, point)) {
-                // pivot_pt is the last added point
-                var pivot_pt = stack[stack.length-1];
-
-                var next_edge = new Edge(point, points[(i+1) % points.length]);
-                var last_added_edge = new Edge(pivot_pt, point);
-
-                if (!right_turn(player.point, pivot_pt, point)) {
-                    // Just emerged from a pocket.
-                    if (right_turn(player.point, pivot_pt, prev_point)) {
-                        var window_emergence_edge = new Edge(prev_point, point);
-                        add_window_point(player, stack, edge_stack, pivot_pt, 
-                            window_emergence_edge);
-                    }
-
-                    // update the pivot pt and the last added edge
-                    pivot_pt = stack[stack.length-1];
-                    last_added_edge = new Edge(pivot_pt, point);
-                } else {
-                    // INVARIANT: (player, pivot, point) is a right turn
-                    var next_point = points[(i+1) % points.length];
-                    if (is_visible(player, last_added_edge, next_point, point)) {
-                        // Example: player = (0,0), pivot_pt = (-1, 1), point = (-0.5, 1) => 
-                        //          this right turn is visible (cartesian coords, not js coords
-                        console.log('YES dude');
-                    } else {
-                        console.log('NO dude');
-                        point.invisible = true;
-                    }
-                    var upwards = upwards_backtrack(player, last_added_edge);
-                    // If it's an upwards right turn
-                    if (upwards) { // Want to ignore upwards back-tracks
-                        point.is_upwards_backtrack = true;
-                    } else { // if it's a downwards right turn
-                        // If previous edge was a visible downwards backtrack
-                        backtrack(last_added_edge);
-                    }
-                }
-                // If prev_point != pivot_pt, try to back_track (it won't always do something)
-                if (!are_equal_points(prev_point, pivot_pt))
-                {
-                    console.log('backtracking b/c prev_pt != pivot');
-                    backtrack(last_added_edge);
-                }
-
-                if (point.is_upwards_backtrack != true && point.invisible != true) {
-                    stack.push(point);
-                    edge_stack.push(next_edge);
-                }
-                else {
-                }
-                point.invisible = false;
-                point.is_upwards_backtrack = false;
-            }
-        }
-        else {
-        }
-        while (are_equal_points(stack[stack.length-1], stack[stack.length-2])) {
-            edge_stack.pop();
-            stack.pop();
-        }
-        while (stack.length > 2 &&
-               are_equal_points(stack[stack.length-2], stack[stack.length-3])) {
-            edge_stack.splice(edge_stack.length-2, 1);
-            stack.splice(stack.length-2, 1);
-        }
-        return done_with_algo;
-    }
-
-    while (true) {
-        point = points[i];
-        result = progress_algorithm(point);
-        prev_point = point;
-
-        i = (i + 1) % points.length;
-        if (result == true) {
-            break;
-        }
-    }
-
-    var last_point = new Point(first_left.x, first_left.y);
-
-    in_range = true;
-
-    draw_point(last_point.x, last_point.y, 'orange');
-    stack.push(last_point);
-    edge_stack.push(new Edge(last_point, player.point));
-
-    var final_points = [];
-    stack.forEach(function(point) {
-        final_points.push([point.x, point.y]);
-    });
-    var visibility = new Polygon(html_id, final_points);
-    return visibility;
-}
-*/
-
+// http://www.cs.tufts.edu/comp/163/lectures/163-chapter07.pdf
 function visibility_polygon(player, polygon, html_id)
 {
     // When a point is pushed on the (point) stack, the edge (starting at that point,
@@ -902,141 +674,18 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 
 function main() {
-    var x_offset = 20;
-    var y_offset = 20;
-    /*
-    var maze = new Maze([ // don't ask me how i made this
-        [x_offset+486, y_offset+126],
-        [x_offset+423, y_offset+15],
-        [x_offset+372, y_offset+33],
-        [x_offset+456, y_offset+102],
-        [x_offset+346, y_offset+191],
-        [x_offset+388, y_offset+108],
-        [x_offset+290, y_offset+33],
-        [x_offset+328, y_offset+156],
-        [x_offset+270, y_offset+151],
-        [x_offset+328, y_offset+311],
-        [x_offset+235, y_offset+298],
-        [x_offset+333, y_offset+397],
-        [x_offset+612, y_offset+336],
-        [x_offset+478, y_offset+350],
-        [x_offset+408, y_offset+258],
-        [x_offset+425, y_offset+347],
-        [x_offset+355, y_offset+260],
-        [x_offset+486, y_offset+154],
-        [x_offset+506, y_offset+257],
-        [x_offset+463, y_offset+209],
-        [x_offset+439, y_offset+285],
-        [x_offset+741, y_offset+293],
-        [x_offset+713, y_offset+150],
-        [x_offset+697, y_offset+245],
-        [x_offset+660, y_offset+194],
-        [x_offset+660, y_offset+271],
-        [x_offset+522, y_offset+205],
-        [x_offset+724, y_offset+102],
-        [x_offset+590, y_offset+149],
-        [x_offset+588, y_offset+57],
-        [x_offset+542, y_offset+124],
-        [x_offset+484, y_offset+32]
-    ]);
-    */
+    var maze_config = medium_mazes[0];
 
-    
-    var maze = new Maze([
-        [x_offset+171, y_offset+386],
-        [x_offset+187, y_offset+367],
-        [x_offset+195, y_offset+345],
-        [x_offset+224, y_offset+366],
-        [x_offset+269, y_offset+329],
-        [x_offset+246, y_offset+266],
-        [x_offset+293, y_offset+264],
-        [x_offset+323, y_offset+298],
-        [x_offset+273, y_offset+290],
-        [x_offset+305, y_offset+389],
-        [x_offset+319, y_offset+316],
-        [x_offset+362, y_offset+383],
-        [x_offset+417, y_offset+341],
-        [x_offset+441, y_offset+391],
-        [x_offset+467, y_offset+349],
-        [x_offset+539, y_offset+389],
-        [x_offset+539, y_offset+341],
-        [x_offset+579, y_offset+363],
-        [x_offset+552, y_offset+297],
-        [x_offset+611, y_offset+355],
-        [x_offset+587, y_offset+248],
-        [x_offset+684, y_offset+301],
-        [x_offset+628, y_offset+192],
-        [x_offset+754, y_offset+239],
-        [x_offset+719, y_offset+104],
-        [x_offset+819, y_offset+152],
-        [x_offset+775, y_offset+37],
-        [x_offset+643, y_offset+47],
-        [x_offset+668, y_offset+147],
-        [x_offset+557, y_offset+141],
-        [x_offset+517, y_offset+70],
-        [x_offset+563, y_offset+97],
-        [x_offset+591, y_offset+43],
-        [x_offset+448, y_offset+11],
-        [x_offset+399, y_offset+24],
-        [x_offset+477, y_offset+44],
-        [x_offset+534, y_offset+128],
-        [x_offset+548, y_offset+240],
-        [x_offset+514, y_offset+330],
-        [x_offset+423, y_offset+298],
-        [x_offset+433, y_offset+240],
-        [x_offset+486, y_offset+206],
-        [x_offset+486, y_offset+134],
-        [x_offset+373, y_offset+149],
-        [x_offset+415, y_offset+184],
-        [x_offset+407, y_offset+282],
-        [x_offset+277, y_offset+249],
-        [x_offset+242, y_offset+183],
-        [x_offset+283, y_offset+174],
-        [x_offset+296, y_offset+82],
-        [x_offset+309, y_offset+210],
-        [x_offset+380, y_offset+214],
-        [x_offset+307, y_offset+141],
-        [x_offset+434, y_offset+117],
-        [x_offset+287, y_offset+41],
-        [x_offset+279, y_offset+130],
-        [x_offset+178, y_offset+100],
-        [x_offset+126, y_offset+59],
-        [x_offset+193, y_offset+84],
-        [x_offset+170, y_offset+35],
-        [x_offset+14, y_offset+52],
-        [x_offset+11, y_offset+115],
-        [x_offset+7, y_offset+202],
-        [x_offset+55, y_offset+300],
-        [x_offset+62, y_offset+221],
-        [x_offset+15, y_offset+181],
-        [x_offset+39, y_offset+134],
-        [x_offset+88, y_offset+146],
-        [x_offset+66, y_offset+98],
-        [x_offset+132, y_offset+81],
-        [x_offset+241, y_offset+150],
-        [x_offset+189, y_offset+211],
-        [x_offset+236, y_offset+226],
-        [x_offset+238, y_offset+326],
-        [x_offset+151, y_offset+331],
-        [x_offset+130, y_offset+298],
-        [x_offset+168, y_offset+311],
-        [x_offset+213, y_offset+265],
-        [x_offset+124, y_offset+228],
-        [x_offset+151, y_offset+280],
-        [x_offset+77, y_offset+245],
-        [x_offset+143, y_offset+ 385],
-    ]);
+    var maze = new Maze(maze_config.pointlist);
 
-    maze.start = maze.points[0];
-    maze.end = maze.points[25];
+    maze.start = maze_config.start;
+    maze.end = maze_config.end;
     maze.x_scale(1.2);
     maze.y_scale(1.5);
     maze.draw(); 
 
     var player = new Player(maze);
-    var start_point = new Point(77, 398);
-    player.move_to(start_point.x, start_point.y);
-    //player.angle = 235;
+    player.move_to(maze.start.x, maze.start.y);
 
     player.draw();
     $('#end').click(function(e) {
@@ -1064,16 +713,15 @@ function main() {
         });
     }
 
+    // For knowing whether or not to delete the endpoint after unclick
     var end_in_sight = false;
-    function draw_end_if_visible(polygon) {
-        var end_pt = new Point(maze.end[0], maze.end[1]);
+
+    function draw_end_if_visible(visibility_polygon) {
         if (!end_in_sight) {
-            polygon.points.forEach(function (point) {
-                if (are_equal_points(point, end_pt)) {
-                    $('#end').show()
-                    end_in_sight = true;
-                }
-            });
+            if (point_in_polygon(visibility_polygon, maze.end)) {
+                $('#end').show()
+                end_in_sight = true;
+            }
         }
     }
 
@@ -1191,13 +839,6 @@ function main() {
     draw_visibility();
 
     dragging = false;
-    /*
-    $('#visibility').mousedown(onclick)
-                    .mousemove(ondrag);
-    $('#player').mousedown(onclick)
-                .mousemove(ondrag);
-    $('body').mouseup(onunclick);
-    */
     $('svg').mousedown(onclick)
             .mousemove(ondrag);
     $('body').mouseup(onunclick);
