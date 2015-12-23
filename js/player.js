@@ -15,9 +15,9 @@ var Player = function(maze) {
     this.move_to = function(x, y) {
         prev_x = self.x;
         prev_y = self.y;
-        var new_angle = angle_between(prev_x, prev_y, x, y);
+        //var new_angle = angle_between(prev_x, prev_y, x, y);
 
-        self.angle = new_angle;
+        //self.angle = new_angle;
         self.x = x;
         self.y = y;
         self.point = new Point(x, y);

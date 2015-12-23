@@ -698,12 +698,6 @@ function visibility_polygon(player, polygon, html_id)
             stack.push(edge);
         }
 
-        // Detect downwards backtrack & pop until stack[-1] is visible
-        // If we cross a window (if the intersection between edge and stack[-1] is on
-        // both lines), enter upwards backtrack mode.
-
-        // Detect downwards backtrack & pup until stack[-1] is visible
-
         return done_with_algo;
     }
 
@@ -719,16 +713,23 @@ function visibility_polygon(player, polygon, html_id)
 
     var last_point = new Point(first_left.x, first_left.y);
 
-    /*
-    stack.forEach(function(edge) {
+    stack.map(function(edge) {
         if (!edge.is_window) {
             if (!are_equal_points(edge.start, player.point) &&
                 !are_equal_points(edge.start, player.point)) {
+                if (is_on_segment(last_point, edge)) {
+                    if (!are_equal_points(edge.end, last_point)) {
+                        //edge.end = last_point;
+                        var chopped_edge = new Edge(edge.start, last_point);
+                        chopped_edge.draw('white');
+                        return chopped_edge;
+                    }
+                }
                 edge.draw('white');
             }
         }
+        return edge;
     });
-    */
     stack.push(new Edge(stack[stack.length-1].end, last_point));
 
     var final_points = [];
@@ -1016,7 +1017,8 @@ function main() {
     maze.draw(); 
 
     var player = new Player(maze);
-    player.move_to(77, 398);
+    var start_point = new Point(77, 398);
+    player.move_to(start_point.x, start_point.y);
     player.angle = 235;
 
     player.draw();
@@ -1058,6 +1060,69 @@ function main() {
         }
     }
 
+    var visibility1;
+    var visibility2;
+    var visibility3;
+    var visibility4;
+
+    function draw_visibility() {
+        visibility1 = visibility_polygon(player, maze.polygon, 'visibility');
+        if (visibility1.points.length == 0) {
+            player.angle += 1;
+            if (player.angle > 360) {
+                player.angle -= 360;
+            }
+            // sometimes, angle = NaN. so we just manually fix that. 
+            if (!player.angle) {
+                player.angle = 0;
+            }
+            draw_visibility();
+            return;
+        }
+        player.angle += 90;
+
+        visibility2 = visibility_polygon(player, maze.polygon, 'visibility2');
+        player.angle += 90;
+
+        visibility3 = visibility_polygon(player, maze.polygon, 'visibility3');
+        player.angle += 90;
+
+        visibility4 = visibility_polygon(player, maze.polygon, 'visibility4');
+        player.angle += 90;
+        player.angle -= 360;
+
+        visibility1.draw();
+        draw_end_if_visible(visibility1);
+        visibility2.draw();
+        draw_end_if_visible(visibility2);
+        visibility3.draw();
+        draw_end_if_visible(visibility3);
+        visibility4.draw();
+        draw_end_if_visible(visibility4);
+    }
+
+    // Combines the 4 visibility polygons into one big, real visibility polygon.
+    function stitch_visibility() {
+    }
+
+    function get_dist_from_poly(polygon, x, y) {
+        var retval = polygon.distance_from(new Point(x, y));
+        var dist = retval[0];
+        var closest_edge = retval[1];
+        return dist;
+    }
+
+    function dist_from_visibility(x, y) {
+        var abs_min = 10000;
+
+        var this_dist = get_dist_from_poly(maze.polygon, x, y);
+        if (this_dist < abs_min) {
+            abs_min = this_dist;
+        }
+
+        return abs_min;
+    }
+
     var onclick = function(e) {
         $('.clickable').attr('style', 'cursor: move;');
         dragging = true;
@@ -1065,41 +1130,23 @@ function main() {
     }
     var ondrag = function(e) {
         if (dragging) {
-            $('line').remove();
             var x = e.offsetX;
             var y = e.offsetY;
-            var dist = maze.polygon.distance_from(new Point(x, y));
+            var dist = dist_from_visibility(x, y);
             if (dist < 2.5) {
                 return;
             }
+            $('.drawn_point').remove();
+            $('line').remove();
             if (is_valid_click(player, x, y)) {
                 player.move_to(x, y);
                 player.draw();
             }
-            copy_visibility();
 
+            copy_visibility();
             end_in_sight = false;
             $('#end').hide()
-            var visibility = visibility_polygon(player, maze.polygon, 'visibility');
-            visibility.draw();
-            draw_end_if_visible(visibility);
-            player.angle += 90;
-
-            visibility = visibility_polygon(player, maze.polygon, 'visibility2');
-            visibility.draw();
-            draw_end_if_visible(visibility);
-            player.angle += 90;
-
-            visibility = visibility_polygon(player, maze.polygon, 'visibility3');
-            visibility.draw();
-            draw_end_if_visible(visibility);
-            player.angle += 90;
-
-            visibility = visibility_polygon(player, maze.polygon, 'visibility4');
-            visibility.draw();
-            draw_end_if_visible(visibility);
-            player.angle += 90;
-            player.angle -= 360;
+            draw_visibility();
         }
     };
     var onunclick = function(e) {
@@ -1110,29 +1157,20 @@ function main() {
         }
     }
 
-    var visibility = visibility_polygon(player, maze.polygon, 'visibility');
-    visibility.draw();
-    player.angle += 90;
-
-    visibility = visibility_polygon(player, maze.polygon, 'visibility2');
-    visibility.draw();
-    player.angle += 90;
-
-    visibility = visibility_polygon(player, maze.polygon, 'visibility3');
-    visibility.draw();
-    player.angle += 90;
-
-    visibility = visibility_polygon(player, maze.polygon, 'visibility4');
-    visibility.draw();
-    player.angle += 90;
-    player.angle -= 360;
+    draw_visibility();
 
     dragging = false;
+    /*
     $('.visibility').mousedown(onclick)
                     .mousemove(ondrag);
     $('#player').mousedown(onclick)
                 .mousemove(ondrag);
     $('body').mouseup(onunclick);
+    */
+    $('body').mousedown(onclick)
+             .mousemove(ondrag)
+             .mouseup(onunclick);
+
 }
 
 

@@ -47,6 +47,9 @@ var Polygon = function(id, points) {
         self.points.forEach(function(point) {
             points_str += point.x+','+point.y+' ';
         });
+        if (!points_str) {
+            console.log('points is []');
+        }
         $('#'+self.id).attr('points', points_str);
     };
     this.distance_from = function(point) {
@@ -92,7 +95,7 @@ var Polygon = function(id, points) {
                 min_edge = edge;
             }
         });
-        return min_dist;
+        return [min_dist, min_edge];
     }
 }
 
