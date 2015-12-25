@@ -674,7 +674,7 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 
 function main() {
-    var maze_config = medium_mazes[0];
+    var maze_config = random_hard_maze();
 
     var maze = new Maze(maze_config.pointlist);
 

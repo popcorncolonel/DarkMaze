@@ -9,21 +9,81 @@
 
 <body>
 
-<div>
-    <div>(Intro - what the game is)</div>
-    <div>(Info about visibility polygons)</div>
-    <div>(Easy O(n log n) or O(n&#0178;) alternative)</div>
-    <div>(Implementation details - explanation of why it's linear)</div>
-    <div>(Bugs I ran into)</div>
+<div class="container">
+    <div>
+        <b> What is this website? </b>
+        <div>
+            I implemented a computational geometry algorithm and turned it into a game. The object of the game is to nagivate your way around a <i>dark maze</i>,
+            and when you get to the end, you have to get back to where you started.... faster than the time you took to get there. So make sure you remember your way as you
+            navigate around!
+            <br>
+            You have a few seconds of memory to represent what you've just seen, but that disappears after a bit, so you have to remember your way around the polygon.
+        </div>
+    </div>
 </div>
 
-<div>
+
+<div class="container">
     <svg width="1024" height="768">
       <polygon class="maze" id="maze"/>
       <polygon class="visibility clickable" id="visibility"/>
       <circle r="10" id="end" class="endpoint"/>
       <circle r="5" id="player" class="player clickable"/>
     </svg>
+</div>
+
+<div class="container">
+    <div>
+        <b> Visibility Polygons </b>
+        <div>
+            The visibility polygon of a point with respect to a polygon is defined as all the points in the polygon that that point can "see". It's a pretty intuitive
+            idea, but to implement a correct, general, fast algorithm to compute it is rather <a href="http://www.cs.tufts.edu/comp/163/lectures/163-chapter07.pdf">tricky</a>. 
+        </div>
+    </div>
+
+    <br>
+
+    <div><b> An Alternative Algorithm </b>
+        <div>
+            An alternate to this linear-time algorithm is explained <a href="">here</a>. Essentially these are the steps:
+            <ol>
+                <li>
+                Cast a ray from the point to all vertices and record the first collision (<i>O(n)</i> for each vertex to get all the collisions, 
+                for a total runtime of <i>O(n&sup2;)</i>)
+                </li>
+                <li>
+                For all collisions, create 2 more collisions by shooting another ray +/- 0.000001 radians (for the walls behind any vertex).
+                </li>
+                <li>
+                Sort all the collisions (<i>O(n log n)</i>) to piece together the polygon.
+                </li>
+            </ol>
+        </div>
+    </div>
+
+    <br>
+
+    <div>
+        <b> Algorithm explanation - why it's linear </b>
+        <div>
+            asdf
+        </div>
+    </div>
+
+    <br>
+
+    <div>
+        <b>Bugs I ran into</b>
+        <div>
+            asdf
+        </div>
+    </div>
+
+    <br>
+
+    <div>
+        <b><a href="https://github.com/popcorncolonel/DarkMaze/blob/master/js/visibilityregion.js"><b>Source code</b></a></b>
+    </div>
 </div>
 
 </body>

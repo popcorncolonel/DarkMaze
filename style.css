@@ -28,9 +28,19 @@
 
 svg {
     background-color: black;
+    border-color:grey;
+    border-style: solid;
+    width: 100%;
 }
 
 body {
     background-color: black;
     color: white;
+}
+
+.container {
+    width: 70%;
+    min-width: 1024px;
+    margin: 0 auto;
+    margin-top: 1.5%;
 }
