@@ -36,6 +36,15 @@ svg {
 body {
     background-color: black;
     color: white;
+    font-family: Helvetica;
+}
+
+.centered {
+    text-align: center;
+}
+
+.title {
+    font-size: 2.5em;
 }
 
 .container {

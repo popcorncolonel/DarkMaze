@@ -673,9 +673,28 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 
 
-function main() {
-    var maze_config = random_hard_maze();
+function main(difficulty) {
+    var maze_config;
+    switch (difficulty) {
+        case "easy": 
+            maze_config = random_easy_maze();
+            $("#difficultytext").html(": Easy");
+            break;
+        case "medium": 
+            maze_config = random_medium_maze();
+            $("#difficultytext").html(": Medium");
+            break;
+        case "hard": 
+            maze_config = random_hard_maze();
+            $("#difficultytext").html(": Hard");
+            break;
+        default:
+            $('circle').hide();
+            return;
+            //maze_config = medium_mazes[0];
+    }
 
+    $('circle').show();
     var maze = new Maze(maze_config.pointlist);
 
     maze.start = maze_config.start;
@@ -845,6 +864,11 @@ function main() {
 
 }
 
+$("#difficulty").change(function(e) {
+    var difficulty = $("#difficulty").val();
+    $("#difficulty").attr("disabled", true);
+    main(difficulty);
+});
 
 main();
 

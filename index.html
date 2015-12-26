@@ -10,6 +10,9 @@
 <body>
 
 <div class="container">
+    <h1 class="title centered">
+        Dark Maze
+    </h1>
     <div>
         <b> What is this website? </b>
         <div>
@@ -22,6 +25,15 @@
     </div>
 </div>
 
+<div class="container">
+    <div>Difficulty<span id="difficultytext"></span></div>
+    <select id="difficulty">
+        <option value="none" selected>Select a difficulty...</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+    </select>
+</div>
 
 <div class="container">
     <svg width="1024" height="768">
@@ -45,7 +57,7 @@
 
     <div><b> An Alternative Algorithm </b>
         <div>
-            An alternate to this linear-time algorithm is explained <a href="">here</a>. Essentially these are the steps:
+            An alternate to this linear-time algorithm is explained <a href="http://ncase.me/sight-and-light/">here</a>. Essentially these are the steps:
             <ol>
                 <li>
                 Cast a ray from the point to all vertices and record the first collision (<i>O(n)</i> for each vertex to get all the collisions, 
@@ -64,9 +76,54 @@
     <br>
 
     <div>
-        <b> Algorithm explanation - why it's linear </b>
+        <b> Linear algorithm explanation </b>
         <div>
-            asdf
+            Essentially, here is how the algorithm works:
+            <br>
+            (You can visually follow along <a href="http://www.cs.tufts.edu/comp/163/lectures/163-chapter07.pdf">here</a>)
+
+            <br>
+            <br>
+
+            We do 4 instances of an algorithm that finds the visibility of a 90 degree cone, and stitch the visibility
+            polygons (at all 4 angles; 0, 90, 180, and 270) together.
+
+            First, we find the two points in the polygon where the 90 degree cone intersects an edge and add the player's point and
+            those intersection points to a stack. This can be done in linear time by just looping through all the edges and seeing
+            if the visibility cone intersects with that edge.
+            Then, (without loss of generality, assume the polygon faces CCW) we walk linearly along the edges in a CCW direction.
+            Assuming a convex polygon, this is all we need to do. If it's not convex, we may have more cases to check for.
+            However, while the edges still face in a CCW direction with respect to the player, we can keep adding them to the stack.
+            <br>
+            <br>
+            If the polygon enters an "upwards backtrack" (denoted by if an edge points in a CW direction with respect to
+            the player and goes away from the player), we ignore edges until the algorithm emerges from the upwards backtrack, going CCW again, but this time
+            above the edge that caused the upwards backtrack. When we find the emerging edge, we add a new window edge starting from
+            the edge before the one that caused the upwards backtrack and ending at the emergence point that just became visible
+            after returning from the upwards backtrack. Then, we resume walking in a CCW fashion and keep adding
+            to the stack.
+            <br>
+            <br>
+            If the polygon enters a "downwards backtrack" (denoted by if an edge points in a CW direction with respect to
+            the player and faces towards the player), then the edge causing the downwards backtrack is covering up some edges, and
+            we pop the edges that are completely covered from the stack, and add a window edge that intersects with the edge that
+            is only <i>partially</i> covered by the downwards backtrack. Then, we resume walking in a CCW fashion and keep adding
+            to the stack.. 
+            <br>
+            <br>
+            There are more cases for what the polygon can do (such as a downwards backtrack crossing a window, in which case we need
+            to slightly modify the case we're dealing with), but these cases are better described on the class slides <a href="http://www.cs.tufts.edu/comp/163/lectures/163-chapter07.pdf">here</a>.
+
+            <br>
+            <br>
+            When we reach the last intersection point, the stack represents the visibility polygon in a cone! Now we just need to
+            calculate the visibility polygon 3 more times (after changing the angle by 90 degrees) and stitch it together,
+            and we have the entire visibility region of that point.
+            <br>
+            <br>
+            Clearly, this algorithm is linear with respect to the number of edges of the polygon, becauase it takes linear time
+            to find the intersection points, and takes linear time to walk along the edge list of the polygon sequentially, and
+            potentially push/pop edges to/from the stack (at most once per edge).
         </div>
     </div>
 
@@ -75,7 +132,11 @@
     <div>
         <b>Bugs I ran into</b>
         <div>
-            asdf
+            TODO
+            <br>
+            -point stack vs edge stack
+            <br>
+            -upwards backtrack upper bound
         </div>
     </div>
 
