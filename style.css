@@ -5,6 +5,12 @@
 .visibility {
     fill: yellow;
 }
+.victory {
+    fill: yellow;
+}
+.failure {
+    fill: yellow;
+}
 
 .clickable {
     cursor: pointer;

@@ -671,271 +671,27 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
     return result;
 };
 
-// not actually ms - it's centiseconds really.
-var ms = 0;
 
-// Counts up. done with the person clicks on the end point.
-function start_up_timer() {
-    function pad(val) {
-        return val > 9 ? val : "0" + val;
-    }
-    var timer = setInterval(function () {
-        document.getElementById("ms").innerHTML = pad(Math.floor((++ms % 100)));
-        document.getElementById("seconds").innerHTML = pad(Math.floor(ms / 100) % 60);
-        document.getElementById("minutes").innerHTML = pad(Math.floor(ms / (60 * 100)));
-    }, 10);
-    return timer;
-}
-
-function out_of_time() {
-    $('svg').unbind('mousemove');
-    $('#end').remove();
-    alert("Time's up!");
-}
-
-// Counts down from the time when the person clicks on the end point.
-// However, the downwards timer is 1.5x faster than the upwards timer, so
-// the player has to get back faster.
-function start_down_timer(ms) {
-    function pad(val) {
-        return val > 9 ? val : "0" + val;
-    }
-    var down_timer = setInterval(function () {
-        if (Math.random() < 0.5) { // 1.5x slower
-            --ms;
-        }
-        if (ms <= 0) {
-            out_of_time();
-            ms = 1;
-            clearInterval(down_timer);
-        }
-        document.getElementById("ms").innerHTML = pad(Math.floor((--ms % 100)));
-        document.getElementById("seconds").innerHTML = pad(Math.floor(ms / 100) % 60);
-        document.getElementById("minutes").innerHTML = pad(Math.floor(ms / (60 * 100)));
-    }, 10);
-    return down_timer;
-}
-
-function victory(ms, down_timer, finish_time) {
-    clearInterval(down_timer);
-    alert("Victory!");
-    // TODO: assign a score. 
-}
-
-// When in doubt, make it global.
-var down_timer;
-var done_with_game_ms;
-
-function done_with_maze(player, maze, timer_interval) {
-    if (!player.countdown) {
-        player.countdown = true;
-        clearInterval(timer_interval);
-        done_with_game_ms = ms;
-        down_timer = start_down_timer(ms);
-        $('#timer').css('color', 'red');
-        player.point = maze.end;
-        maze.end = maze.start;
-        maze.draw();
-    }
-    else {
-        victory(ms, down_timer, done_with_game_ms);
-    }
-}
-
+var game = null;
 function main(difficulty) {
-    var maze_config;
     switch (difficulty) {
         case "easy": 
-            maze_config = random_easy_maze();
-            $("#difficultytext").html(": Easy");
-            break;
         case "medium": 
-            maze_config = random_medium_maze();
-            $("#difficultytext").html(": Medium");
-            break;
         case "hard": 
-            maze_config = random_hard_maze();
-            $("#difficultytext").html(": Hard");
+            game = new Game(difficulty);
             break;
         default:
             $('circle').hide();
             return;
-            //maze_config = medium_mazes[0];
     }
-
-    ms = 0;
-    $('circle').show();
-    var maze = new Maze(maze_config.pointlist);
-
-    var timer = start_up_timer();
-
-    maze.start = maze_config.start;
-    maze.end = maze_config.end;
-    maze.x_scale(1.2);
-    maze.y_scale(1.5);
-    maze.draw(); 
-
-    var player = new Player(maze);
-    player.move_to(maze.start.x, maze.start.y);
-
-    player.draw();
-    $('#end').click(function(e) {
-        done_with_maze(player, maze, timer);
-    });
-
-    function delete_old(elems) {
-        elems.forEach(function(elem) {
-            elem.remove();
-        });
-    }
-    function copy_visibility(color) {
-        color = color || "grey";
-        $('#visibility').each(function(index, element) {
-            var shape = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-            shape.setAttribute("class", "shadow clickable");
-            shape.setAttribute("points", $(this).attr('points'));
-            $("svg").prepend(shape);
-            setTimeout(function() {
-                $(shape).fadeOut("slow");
-                setTimeout(function(){shape.remove()}, 500);
-            }, 5000)
-        });
-    }
-
-    // For knowing whether or not to delete the endpoint after unclick
-    var end_in_sight = false;
-
-    function draw_end_if_visible(visibility_polygon) {
-        if (!end_in_sight) {
-            if (point_in_polygon(visibility_polygon, maze.end)) {
-                $('#end').show()
-                end_in_sight = true;
-            }
-        }
-    }
-
-    var visibility1;
-    var visibility2;
-    var visibility3;
-    var visibility4;
-
-    // Master polygon - stitched together sub-visibility poly's
-    var visibility;
-
-    function draw_visibility() {
-        visibility1 = visibility_polygon(player, maze.polygon, 'visibility');
-        if (visibility1.points.length == 0) {
-            player.angle += 1;
-            if (player.angle > 360) {
-                player.angle -= 360;
-            }
-            // sometimes, angle = NaN. so we just manually fix that. 
-            if (!player.angle) {
-                player.angle = 0;
-            }
-            draw_visibility();
-            return;
-        }
-        player.angle = 270;
-
-        visibility2 = visibility_polygon(player, maze.polygon, 'visibility2');
-        player.angle -= 90;
-
-        visibility3 = visibility_polygon(player, maze.polygon, 'visibility3');
-        player.angle -= 90;
-
-        visibility4 = visibility_polygon(player, maze.polygon, 'visibility4');
-        player.angle -= 90;
-        player.angle += 360;
-
-        visibility = stitch_visibility();
-        draw_end_if_visible(visibility);
-        visibility.draw();
-    }
-
-    // Combines the 4 visibility polygons into one big, real visibility polygon.
-    function stitch_visibility() {
-        var points = [];
-        var polygons = [visibility1, visibility2, visibility3, visibility4];
-        polygons.forEach(function(polygon) {
-            polygon.points.forEach(function(point) {
-                if (are_equal_points(point, player.point)) {
-                        return;
-                    }
-                if (point) {
-                    points.push([point.x, point.y]);
-                }
-            });
-        });
-        return new Polygon('visibility', points);
-    }
-
-    // Invariant: point is NOT in polygon
-    function closest_point_on_polygon(polygon, point) {
-        var retval = polygon.distance_from(point);
-        var dist = retval[0];
-        var closest_edge = retval[1];
-        var closest_pt = retval[2];
-        return closest_pt;
-    }
-
-    var onclick = function(e) {
-        $('.clickable').attr('style', 'cursor: move;');
-        dragging = true;
-        ondrag(e);
-    }
-    var ondrag = function(e) {
-        if (dragging) {
-            var x = e.offsetX;
-            var y = e.offsetY;
-            var class_string = e.target.getAttribute('class');
-            if (class_string && (
-                class_string.indexOf('visibility') > -1 || 
-                class_string.indexOf('player') > -1
-                )) {
-                // then we're good
-            } else {
-                // if we're outside of the polygon, we need to find the closest point
-                // on the polygon to x, y AND SET x,y TO THAT
-                var closest_point = closest_point_on_polygon(visibility, new Point(x, y));
-                x = closest_point.x;
-                y = closest_point.y;
-            }
-            if (!point_in_polygon(maze.polygon, new Point(x, y))) {
-                return;
-            }
-            if (is_valid_click(player, x, y)) {
-                player.move_to(x, y);
-                player.draw();
-            }
-
-            copy_visibility();
-            end_in_sight = false;
-            $('#end').hide()
-            $('.drawn_point').remove();
-            $('line').remove();
-            draw_visibility();
-        }
-    };
-    var onunclick = function(e) {
-        dragging = false;
-        $('.clickable').attr('style', 'cursor: click;');
-        if (!end_in_sight) {
-            $('#end').hide();
-        }
-    }
-
-    draw_visibility();
-
-    dragging = false;
-    $('svg').mousedown(onclick)
-            .mousemove(ondrag);
-    $('body').mouseup(onunclick);
+    game.play();
 }
 
 $("#difficulty").change(function(e) {
+    if (game) {
+        game.end_game();
+    }
     var difficulty = $("#difficulty").val();
-    $("#difficulty").attr("disabled", true);
     main(difficulty);
 });
 
