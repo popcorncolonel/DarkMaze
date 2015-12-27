@@ -13,8 +13,8 @@ var Player = function(maze) {
         $('#player').attr('cy', cy);
     }
     this.move_to = function(x, y) {
-        prev_x = self.x;
-        prev_y = self.y;
+        var prev_x = self.x;
+        var prev_y = self.y;
         //var new_angle = angle_between(prev_x, prev_y, x, y);
 
         //self.angle = new_angle;

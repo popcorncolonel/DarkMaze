@@ -128,8 +128,7 @@ var Game = function(difficulty) {
             self.finish_time = self.ms;
             self.start_down_timer(ms);
             $('#timer').css('color', 'red');
-            self.player.point = self.maze.end;
-            self.player.move_to(self.player.point.x, self.player.point.y);
+            self.player.move_to(self.maze.end.x, self.maze.end.y);
             self.player.draw();
             self.maze.end = self.maze.start;
             self.maze.draw();
@@ -146,14 +145,12 @@ var Game = function(difficulty) {
 
     this.maze.start = maze_config.start;
     this.maze.end = maze_config.end;
-    this.maze.x_scale(1.2);
-    this.maze.y_scale(1.5);
     this.maze.draw(); 
 
     this.player = new Player(this.maze);
     this.player.move_to(this.maze.start.x, this.maze.start.y);
-
     this.player.draw();
+
     $('#end').unbind();
     $('#end').click(function(e) {
         self.done_with_maze();
@@ -302,6 +299,9 @@ var Game = function(difficulty) {
     }
 
     this.play = function() {
+        self.player.move_to(self.maze.start.x, self.maze.start.y);
+        self.player.draw();
+        
         draw_visibility();
 
         $('.clickable').attr('style', 'cursor: click;');

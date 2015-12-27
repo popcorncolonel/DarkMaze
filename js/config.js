@@ -3,6 +3,11 @@ var MazeConfig = function(pointlist, start, end) {
     this.pointlist = pointlist;
     this.start = start;
     this.end = end;
+    var xscale = 1.2;
+    var yscale = 1.5;
+    this.pointlist = this.pointlist.map(function(point) {
+        return [point[0] * xscale, point[1] * yscale];
+    });
 }
 
 // These are MazeConfigs
