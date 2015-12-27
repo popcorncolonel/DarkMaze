@@ -83,6 +83,8 @@ var Game = function(difficulty) {
         $('#visibility').css('fill', 'green');
         $('#player').css('fill', 'blue');
         clearInterval(self.down_timer);
+        $('#playagain').show();
+
         alert("Victory! Your score: " + score);
     }
 
@@ -94,6 +96,8 @@ var Game = function(difficulty) {
         $('#end').unbind();
         $('#end').show();
         $('#visibility').css('fill', 'red');
+        $('#playagain').show();
+
         alert("Time's up! Thanks for playing!");
     }
 

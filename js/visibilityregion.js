@@ -674,6 +674,7 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
 
 var game = null;
 function main(difficulty) {
+    $('#playagain').hide();
     switch (difficulty) {
         case "easy": 
         case "medium": 
@@ -687,7 +688,15 @@ function main(difficulty) {
     game.play();
 }
 
-$("#difficulty").change(function(e) {
+$("#difficulty").change(function() {
+    if (game) {
+        game.end_game();
+    }
+    var difficulty = $("#difficulty").val();
+    main(difficulty);
+});
+
+$('#playagain').click(function() {
     if (game) {
         game.end_game();
     }

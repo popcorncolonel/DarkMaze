@@ -45,6 +45,7 @@
       <circle r="10" id="end" class="endpoint"/>
       <circle r="5" id="player" class="player clickable"/>
     </svg>
+    <button id="playagain" style="display: none;">Play again?</button>
 </div>
 
 <div class="container">
@@ -133,13 +134,31 @@
     <br>
 
     <div>
-        <h3>Bugs I ran into</h3>
+        <h3>Some bugs I ran into</h3>
         <div>
-            TODO
+            One problem I ran into was trying to implement the stack using points rather than edges, and then
+            just use the stack as the parameter for the polygon creation. Because the algorithm so heavily
+            relies on certain information about edges (like which direction an edge points), the point stack idea
+            messed up my logic in code, even though the two are technically equivalent (we can determine the "next
+            edge" we're looking at by just peeking ahead in the point list of the polygon). After about
+            a week of messing around with convoluted point logic, I fixed my implementation by pretty
+            much starting from scratch and using an edge stack. It took me only a few hours to get back the progress
+            I had made previously, and was done with the entire algorithm within a few days after that. 
             <br>
-            -point stack vs edge stack
             <br>
-            -upwards backtrack upper bound
+            Another problem I encountered was with the upwards backtrack mode, as described above. We emerge from the upwards
+            backtrack when we return from the polygon's edges with an edge facing CCW with respect to the player. However,
+            if the polygon first loops back around CW and <i>then</i> comes back in a CCW direction, as denoted here,
+            <div>
+                <img src="http://i.imgur.com/xOPSpU7.png"/>
+            </div>
+            then this edge is invisible to the player. To solve this, I just created a stack that I pushed
+            CW-faced edges on (represented by the grey CW facing edge that intersects with the orange visibility ray), and
+            popped when I encountered the CCW-facing visibility ray, denoted by the blue CCW facing edge that has the
+            crossed out symbol over it).
+            When the stack is empty, that means the edge is now visible - all CW-facing edges have
+            been accounted for. (This works because 
+            of the Jordan curve theorem - the polygon has to come back around.)
         </div>
     </div>
 
