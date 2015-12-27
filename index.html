@@ -155,10 +155,13 @@
             then this edge is invisible to the player. To solve this, I just created a stack that I pushed
             CW-faced edges on (represented by the grey CW facing edge that intersects with the orange visibility ray), and
             popped when I encountered the CCW-facing visibility ray, denoted by the blue CCW facing edge that has the
-            crossed out symbol over it).
+            crossed out symbol over it.
             When the stack is empty, that means the edge is now visible - all CW-facing edges have
             been accounted for. (This works because 
             of the Jordan curve theorem - the polygon has to come back around.)
+            <br>
+            This is just one example of the many edge cases that you have to deal with when implementing the visibility
+            polygon algorithm.
         </div>
     </div>
 
