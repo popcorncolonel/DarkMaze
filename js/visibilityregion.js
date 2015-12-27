@@ -671,7 +671,76 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
     return result;
 };
 
+// not actually ms - it's centiseconds really.
+var ms = 0;
 
+// Counts up. done with the person clicks on the end point.
+function start_up_timer() {
+    function pad(val) {
+        return val > 9 ? val : "0" + val;
+    }
+    var timer = setInterval(function () {
+        document.getElementById("ms").innerHTML = pad(Math.floor((++ms % 100)));
+        document.getElementById("seconds").innerHTML = pad(Math.floor(ms / 100) % 60);
+        document.getElementById("minutes").innerHTML = pad(Math.floor(ms / (60 * 100)));
+    }, 10);
+    return timer;
+}
+
+function out_of_time() {
+    $('svg').unbind('mousemove');
+    $('#end').remove();
+    alert("Time's up!");
+}
+
+// Counts down from the time when the person clicks on the end point.
+// However, the downwards timer is 1.5x faster than the upwards timer, so
+// the player has to get back faster.
+function start_down_timer(ms) {
+    function pad(val) {
+        return val > 9 ? val : "0" + val;
+    }
+    var down_timer = setInterval(function () {
+        if (Math.random() < 0.5) { // 1.5x slower
+            --ms;
+        }
+        if (ms <= 0) {
+            out_of_time();
+            ms = 1;
+            clearInterval(down_timer);
+        }
+        document.getElementById("ms").innerHTML = pad(Math.floor((--ms % 100)));
+        document.getElementById("seconds").innerHTML = pad(Math.floor(ms / 100) % 60);
+        document.getElementById("minutes").innerHTML = pad(Math.floor(ms / (60 * 100)));
+    }, 10);
+    return down_timer;
+}
+
+function victory(ms, down_timer, finish_time) {
+    clearInterval(down_timer);
+    alert("Victory!");
+    // TODO: assign a score. 
+}
+
+// When in doubt, make it global.
+var down_timer;
+var done_with_game_ms;
+
+function done_with_maze(player, maze, timer_interval) {
+    if (!player.countdown) {
+        player.countdown = true;
+        clearInterval(timer_interval);
+        done_with_game_ms = ms;
+        down_timer = start_down_timer(ms);
+        $('#timer').css('color', 'red');
+        player.point = maze.end;
+        maze.end = maze.start;
+        maze.draw();
+    }
+    else {
+        victory(ms, down_timer, done_with_game_ms);
+    }
+}
 
 function main(difficulty) {
     var maze_config;
@@ -694,8 +763,11 @@ function main(difficulty) {
             //maze_config = medium_mazes[0];
     }
 
+    ms = 0;
     $('circle').show();
     var maze = new Maze(maze_config.pointlist);
+
+    var timer = start_up_timer();
 
     maze.start = maze_config.start;
     maze.end = maze_config.end;
@@ -708,7 +780,7 @@ function main(difficulty) {
 
     player.draw();
     $('#end').click(function(e) {
-        alert(":)");
+        done_with_maze(player, maze, timer);
     });
 
     function delete_old(elems) {
@@ -722,8 +794,6 @@ function main(difficulty) {
             var shape = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
             shape.setAttribute("class", "shadow clickable");
             shape.setAttribute("points", $(this).attr('points'));
-            $(shape).mousedown(onclick)
-                    .mousemove(ondrag);
             $("svg").prepend(shape);
             setTimeout(function() {
                 $(shape).fadeOut("slow");
@@ -861,7 +931,6 @@ function main(difficulty) {
     $('svg').mousedown(onclick)
             .mousemove(ondrag);
     $('body').mouseup(onunclick);
-
 }
 
 $("#difficulty").change(function(e) {
