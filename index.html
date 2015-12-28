@@ -21,6 +21,8 @@
             navigate around!
             <br>
             You have a few seconds of memory to represent what you've just seen, but that disappears after a bit, so you have to remember your way around the polygon.
+            <br>
+            Control your player by dragging your mouse around the maze.
         </div>
     </div>
 </div>
@@ -36,8 +38,16 @@
 </div>
 
 <div class="container">
-    <div id="timer">
-        <span id="minutes">00</span>:<span id="seconds">00</span>.<span id="ms">00</span>
+    <div>
+        Timer: <span id="timer"><span id="minutes">00</span>:<span id="seconds">00</span>.<span id="ms">00</span></span>
+        <div id="upscore_parent" style="display:none;">
+            Points (exploring the maze): <span id="upscore">0</span>
+        </div>
+        <div id="downscore_parent" style="display:none;">
+            Points (returning home): <span id="downscore">0</span>
+        </div>
+        <div id="total_score" style="display:none;">
+        </div>
     </div>
     <svg width="1024" height="768">
       <polygon class="maze" id="maze"/>

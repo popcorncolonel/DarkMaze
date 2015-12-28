@@ -1,3 +1,21 @@
+// When the timer is going up.
+function get_upscore(ms) {
+    var score = 500000 / ms; // Finishing faster = more points.
+    score = Math.round(score);
+    return score;
+}
+
+// When the timer is going down.
+function get_downscore(finish_time, ms) {
+    // ms_diff is how long it took them to find the end
+    // 0 < ms_diff < finish_time
+    var ms_diff = (finish_time - ms) / 1.5; // 1.5 because the timer counts down 1.5x faster than it counts up
+
+    var score = 400000 / ms_diff - (400000 / (finish_time / 1.5)); // Getting back to the start faster = more point.
+    score = Math.round(score);
+    return score;
+}
+
 // current_ms is the time they came back to the start (in centiseconds)
 // finish_time is the time they found the actual end of the maze (in centiseconds)
 //      current_ms will be less than finish_time, because the timer counts down.
@@ -12,18 +30,11 @@ function assign_score(current_ms, finish_time, difficulty) {
             difficulty_multiplier = 2;
             break;
     }
-    // ms_diff is how long it took them to find the end
-    var ms_diff = (finish_time - current_ms) / 1.5; // 1.5 because the timer counts down 1.5x faster than it counts up
-    ms_diff = Math.floor(ms_diff);
-    // 0 < ms_diff < finish_time
 
-    var init_score = 250000 / finish_time; // Finishing faster = more points.
-    var return_score = 250000 / ms_diff; // Getting back to the start faster = more point.
+    var init_score = get_upscore(finish_time);
+    var return_score = get_downscore(finish_time, current_ms);
 
-    init_score = Math.round(2 * init_score);
-    return_score = Math.round(1.5 * return_score);
-
-    return init_score + return_score;
+    return difficulty_multiplier * (init_score + return_score);
 }
 
 function unbind_svg() {
@@ -68,15 +79,18 @@ var Game = function(difficulty) {
         function pad(val) {
             return val > 9 ? val : "0" + val;
         }
+        $("#upscore_parent").show();
         self.timer = setInterval(function () {
             document.getElementById("ms").innerHTML = pad(Math.floor(((++self.ms) % 100)));
             document.getElementById("seconds").innerHTML = pad(Math.floor(self.ms / 100) % 60);
             document.getElementById("minutes").innerHTML = pad(Math.floor(self.ms / (60 * 100)));
+            $("#upscore").html(get_upscore(self.ms));
         }, 10);
     }
 
     this.victory = function() {
-        var score = assign_score(self.ms, self.finish_time);
+        $("#upscore").html(get_upscore(self.finish_time));
+        var score = assign_score(self.ms, self.finish_time, self.difficulty);
         unbind_svg();
         unbind_body();
         $('#timer').css('color', 'green');
@@ -84,21 +98,31 @@ var Game = function(difficulty) {
         $('#player').css('fill', 'blue');
         clearInterval(self.down_timer);
         $('#playagain').show();
+        $('#total_score').show();
+        $('#total_score').html('Total score: ' + score);
+        self.maze.reveal();
 
-        alert("Victory! Your score: " + score);
+        setTimeout(function() {
+            alert("Victory! Your score: " + score);
+        }, 20);
     }
 
     this.out_of_time = function() {
+        var score = assign_score(self.ms, self.finish_time, self.difficulty);
         unbind_svg();
         unbind_body();
         $('svg').unbind('mousedown');
         $('svg').unbind('mousemove');
         $('#end').unbind();
-        $('#end').show();
         $('#visibility').css('fill', 'red');
         $('#playagain').show();
+        $('#total_score').show();
+        $('#total_score').html('Total score: ' + score);
+        self.maze.reveal();
 
-        alert("Time's up! Thanks for playing!");
+        setTimeout(function() {
+            alert("Time's up! Thanks for playing!");
+        }, 20);
     }
 
     // Counts down from the time when the person clicks on the end point.
@@ -108,6 +132,7 @@ var Game = function(difficulty) {
         function pad(val) {
             return val > 9 ? val : "0" + val;
         }
+        $("#downscore_parent").show();
         self.down_timer = setInterval(function () {
             if (Math.random() < 0.5) { // 1.5x slower
                 self.ms--;
@@ -120,6 +145,7 @@ var Game = function(difficulty) {
             document.getElementById("ms").innerHTML = pad(Math.floor(((--self.ms) % 100)));
             document.getElementById("seconds").innerHTML = pad(Math.floor(self.ms / 100) % 60);
             document.getElementById("minutes").innerHTML = pad(Math.floor(self.ms / (60 * 100)));
+            $("#downscore").html(get_downscore(self.finish_time, self.ms));
         }, 10);
     }
 
@@ -134,6 +160,7 @@ var Game = function(difficulty) {
             $('#timer').css('color', 'red');
             self.player.move_to(self.maze.end.x, self.maze.end.y);
             self.player.draw();
+            $("#upscore").html(get_upscore(self.finish_time));
             self.maze.end = self.maze.start;
             self.maze.draw();
         }
