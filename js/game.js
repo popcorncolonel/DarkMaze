@@ -1,6 +1,6 @@
 // When the timer is going up.
 function get_upscore(ms) {
-    var score = 500000 / ms; // Finishing faster = more points.
+    var score = 300 + 500000 / ms; // Finishing faster = more points. Constant 300 + for happiness factor.
     score = Math.round(score);
     return score;
 }
@@ -11,16 +11,13 @@ function get_downscore(finish_time, ms) {
     // 0 < ms_diff < finish_time
     var ms_diff = (finish_time - ms) / 1.5; // 1.5 because the timer counts down 1.5x faster than it counts up
 
-    var score = 400000 / ms_diff - (400000 / (finish_time / 1.5)); // Getting back to the start faster = more point.
+    var scaling_factor = 500000;
+    var score = (scaling_factor / ms_diff) - (scaling_factor / (finish_time / 1.5)); // Getting back to the start faster = more point.
     score = Math.round(score);
     return score;
 }
 
-// current_ms is the time they came back to the start (in centiseconds)
-// finish_time is the time they found the actual end of the maze (in centiseconds)
-//      current_ms will be less than finish_time, because the timer counts down.
-// 0 < current_ms < finish_time
-function assign_score(current_ms, finish_time, difficulty) {
+function get_difficulty_multiplier(difficulty) {
     var difficulty_multiplier = 1;
     switch (difficulty) {
         case "medium":
@@ -30,7 +27,15 @@ function assign_score(current_ms, finish_time, difficulty) {
             difficulty_multiplier = 2;
             break;
     }
+    return difficulty_multiplier;
+}
 
+// current_ms is the time they came back to the start (in centiseconds)
+// finish_time is the time they found the actual end of the maze (in centiseconds)
+//      current_ms will be less than finish_time, because the timer counts down.
+// 0 < current_ms < finish_time
+function assign_score(current_ms, finish_time, difficulty) {
+    var difficulty_multiplier = get_difficulty_multiplier(difficulty);
     var init_score = get_upscore(finish_time);
     var return_score = get_downscore(finish_time, current_ms);
 
@@ -80,16 +85,18 @@ var Game = function(difficulty) {
             return val > 9 ? val : "0" + val;
         }
         $("#upscore_parent").show();
+        var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         self.timer = setInterval(function () {
             document.getElementById("ms").innerHTML = pad(Math.floor(((++self.ms) % 100)));
             document.getElementById("seconds").innerHTML = pad(Math.floor(self.ms / 100) % 60);
             document.getElementById("minutes").innerHTML = pad(Math.floor(self.ms / (60 * 100)));
-            $("#upscore").html(get_upscore(self.ms));
+            $("#upscore").html(difficulty_multiplier * get_upscore(self.ms));
         }, 10);
     }
 
     this.victory = function() {
-        $("#upscore").html(get_upscore(self.finish_time));
+        var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
+        $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
         var score = assign_score(self.ms, self.finish_time, self.difficulty);
         unbind_svg();
         unbind_body();
@@ -108,6 +115,8 @@ var Game = function(difficulty) {
     }
 
     this.out_of_time = function() {
+        var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
+        $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
         var score = assign_score(self.ms, self.finish_time, self.difficulty);
         unbind_svg();
         unbind_body();
@@ -132,6 +141,7 @@ var Game = function(difficulty) {
         function pad(val) {
             return val > 9 ? val : "0" + val;
         }
+        var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#downscore_parent").show();
         self.down_timer = setInterval(function () {
             if (Math.random() < 0.5) { // 1.5x slower
@@ -145,7 +155,7 @@ var Game = function(difficulty) {
             document.getElementById("ms").innerHTML = pad(Math.floor(((--self.ms) % 100)));
             document.getElementById("seconds").innerHTML = pad(Math.floor(self.ms / 100) % 60);
             document.getElementById("minutes").innerHTML = pad(Math.floor(self.ms / (60 * 100)));
-            $("#downscore").html(get_downscore(self.finish_time, self.ms));
+            $("#downscore").html(difficulty_multiplier * get_downscore(self.finish_time, self.ms));
         }, 10);
     }
 
@@ -330,6 +340,9 @@ var Game = function(difficulty) {
     }
 
     this.play = function() {
+        $('#downscore_parent').hide();
+        $('#total_score').hide();
+
         self.player.move_to(self.maze.start.x, self.maze.start.y);
         self.player.draw();
         
