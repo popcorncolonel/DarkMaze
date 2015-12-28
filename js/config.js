@@ -500,17 +500,30 @@ var hard_mazes = [
     ], new Point(57, 378), new Point(940, 180)),
 ];
 
+var easy_copy = easy_mazes.slice();
+var medium_copy = medium_mazes.slice();
+var hard_copy = hard_mazes.slice();
+
 function random_easy_maze() {
+    if (easy_mazes.length == 0) {
+        easy_mazes = easy_copy.slice();
+    }
     var index = Math.floor(Math.random() * easy_mazes.length);
-    return easy_mazes[index];
+    return easy_mazes.splice(index, 1)[0];
 }
 function random_medium_maze() {
+    if (medium_mazes.length == 0) {
+        medium_mazes = medium_copy.slice();
+    }
     var index = Math.floor(Math.random() * medium_mazes.length);
-    return medium_mazes[index];
+    return medium_mazes.splice(index, 1)[0];
 }
 function random_hard_maze() {
+    if (hard_mazes.length == 0) {
+        hard_mazes = hard_copy.slice();
+    }
     var index = Math.floor(Math.random() * hard_mazes.length);
-    return hard_mazes[index];
+    return hard_mazes.splice(index, 1)[0];
 }
 
 
