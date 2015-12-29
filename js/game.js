@@ -1,6 +1,6 @@
 // When the timer is going up.
 function get_upscore(ms) {
-    var score = 300 + 500000 / ms; // Finishing faster = more points. Constant 300 + for happiness factor.
+    var score = 300 + 10000 / Math.log(ms); // Finishing faster = more points. Constant 300 + for happiness factor.
     score = Math.round(score);
     return score;
 }
@@ -11,9 +11,9 @@ function get_downscore(finish_time, ms) {
     // 0 < ms_diff < finish_time
     var ms_diff = (finish_time - ms) / 1.5; // 1.5 because the timer counts down 1.5x faster than it counts up
 
-    var scaling_factor = 500000;
-    var score = (scaling_factor / ms_diff) - (scaling_factor / (finish_time / 1.5)); // Getting back to the start faster = more point.
-    score = Math.round(score);
+    var scaling_factor = 50000;
+    var score = (scaling_factor / Math.log(ms_diff)) - (scaling_factor / Math.log(finish_time / 1.5)); // Getting back to the start faster = more point.
+    score = Math.max(0, Math.round(score));
     return score;
 }
 
@@ -38,6 +38,8 @@ function assign_score(current_ms, finish_time, difficulty) {
     var difficulty_multiplier = get_difficulty_multiplier(difficulty);
     var init_score = get_upscore(finish_time);
     var return_score = get_downscore(finish_time, current_ms);
+    console.log('init: ' + init_score);
+    console.log('return: ' + return_score);
 
     return difficulty_multiplier * (init_score + return_score);
 }
