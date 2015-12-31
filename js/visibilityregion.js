@@ -684,7 +684,8 @@ function display_intro_message() {
 var game = null;
 function main(difficulty) {
     display_message("To start, select a difficulty above. Then, control the game with your mouse.");
-    $('#playagain').hide();
+    $('circle').hide();
+    $('polygon').hide();
     switch (difficulty) {
         case "easy": 
         case "medium": 
@@ -707,13 +708,13 @@ $("#difficulty").change(function() {
     main(difficulty);
 });
 
-$('#playagain').click(function() {
+function start_game() {
     if (game) {
         game.end_game();
     }
     var difficulty = $("#difficulty").val();
     main(difficulty);
-});
+}
 
 main();
 

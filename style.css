@@ -64,11 +64,13 @@ body {
     fill: white;
     color: white;
     font-size: 1.5em;
+    cursor: default;
 }
 
 #messagebox {
     fill: green;
     stroke-width: 3;
     stroke: rgb(155,155,155);
+    cursor: default;
 }
 

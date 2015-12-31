@@ -18,6 +18,22 @@ function adjust_message_size() {
     $('#messagebox').attr('y', middle_of_svg.y - (message_height / 2 + 30));
 }
 
+function bind_click_to_message(callback) {
+    $('#messagebox').css("cursor", "pointer");
+    $('#messageparent').css("cursor", "pointer");
+    $('#svgmessage').css("cursor", "pointer");
+    $('#messagebox').click(callback);
+    $('#messageparent').click(callback);
+}
+
+function unbind_message() {
+    $('#messagebox').unbind();
+    $('#messageparent').unbind();
+    $('#messagebox').css("cursor", "default");
+    $('#messageparent').css("cursor", "default");
+    $('#svgmessage').css("cursor", "default");
+}
+
 function show_message() {
     $('#messagebox').show();
     $('#messageparent').show();
@@ -145,12 +161,15 @@ var Game = function(difficulty) {
         $('#visibility').css('fill', 'green');
         $('#player').css('fill', 'blue');
         clearInterval(self.down_timer);
-        $('#playagain').show();
         $('#total_score').show();
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
 
-        display_message("Victory! Your score: " + score);
+        display_message("Victory! Your score: " + score + ". Click here to play again.");
+        bind_click_to_message(function () {
+            unbind_message();
+            start_game();
+        });
     }
 
     this.out_of_time = function() {
@@ -163,12 +182,15 @@ var Game = function(difficulty) {
         $('svg').unbind('mousemove');
         $('#end').unbind();
         $('#visibility').css('fill', 'red');
-        $('#playagain').show();
         $('#total_score').show();
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
 
-        display_message("Time's up! Thanks for playing! Your score: " + score);
+        display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to play again.");
+        bind_click_to_message(function() {
+            unbind_message();
+            start_game();
+        });
     }
 
     // Counts down from the time when the person clicks on the end point.
@@ -219,15 +241,12 @@ var Game = function(difficulty) {
 
     this.maze = new Maze(maze_config.pointlist);
 
-    this.start_up_timer();
 
     this.maze.start = maze_config.start;
     this.maze.end = maze_config.end;
-    this.maze.draw(); 
 
     this.player = new Player(this.maze);
     this.player.move_to(this.maze.start.x, this.maze.start.y);
-    this.player.draw();
 
     $('#end').unbind();
     $('#end').click(function(e) {
@@ -399,6 +418,9 @@ var Game = function(difficulty) {
         if (!self.end_in_sight) {
             $('#end').hide();
         }
+        self.start_up_timer();
+        self.maze.draw(); 
+        self.player.draw();
     }
 
     this.end_game = function() {

@@ -36,6 +36,7 @@ var Maze = function(points) {
         }
     }
     this.reveal = function() {
+        $('polygon').show();
         self.polygon.draw();
         /*
         self.polygon.edges.forEach(function(edge) {
