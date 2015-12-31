@@ -132,9 +132,9 @@ var Game = function(difficulty) {
             $("#difficultytext").html(": Hard");
             break;
         default:
-            //$('circle').hide();
-            //return;
-            maze_config = medium_mazes[0];
+            $('circle').hide();
+            return;
+            //maze_config = medium_mazes[0];
     }
 
     // Counts up. done with the person clicks on the end point.
