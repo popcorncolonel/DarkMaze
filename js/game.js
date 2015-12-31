@@ -1,6 +1,47 @@
+function adjust_message_size() {
+    var width = $('svg').width();
+    var height = $('svg').height();
+
+    var middle_of_svg = {
+        x: width / 2,
+        y: height / 2
+    };
+    $('#messageparent').attr('transform', 'translate(' + middle_of_svg.x + ')');
+    $('#messageparent').attr('y', middle_of_svg.y);
+
+    var message_width = $('#messageparent').width();
+    var message_height = $('#messageparent').height();
+
+    $('#messagebox').attr('width', message_width + 60);
+    $('#messagebox').attr('height', message_height / 2 + 60);
+    $('#messagebox').attr('x', middle_of_svg.x - (message_width / 2 + 30));
+    $('#messagebox').attr('y', middle_of_svg.y - (message_height / 2 + 30));
+}
+
+function show_message() {
+    $('#messagebox').show();
+    $('#messageparent').show();
+    $('svg').append($('#messagebox'));
+    $('svg').append($('#messageparent'));
+}
+
+function hide_message() {
+    $('#messageparent').hide();
+    $('#messagebox').hide();
+}
+
+function display_message(message, duration) {
+    $('#svgmessage').html(message);
+    adjust_message_size();
+    show_message();
+    if (duration && duration > 0) {
+        setTimeout(hide_message, duration);
+    }
+}
+
 // When the timer is going up.
 function get_upscore(ms) {
-    var score = 300 + 10000 / Math.log(ms); // Finishing faster = more points. Constant 300 + for happiness factor.
+    var score = 300 + 10000 / Math.sqrt(ms); // Finishing faster = more points. Constant 300 + for happiness factor.
     score = Math.round(score);
     return score;
 }
@@ -12,7 +53,7 @@ function get_downscore(finish_time, ms) {
     var ms_diff = (finish_time - ms) / 1.5; // 1.5 because the timer counts down 1.5x faster than it counts up
 
     var scaling_factor = 50000;
-    var score = (scaling_factor / Math.log(ms_diff)) - (scaling_factor / Math.log(finish_time / 1.5)); // Getting back to the start faster = more point.
+    var score = (scaling_factor / Math.sqrt(ms_diff)) - (scaling_factor / Math.sqrt(finish_time / 1.5)); // Getting back to the start faster = more point.
     score = Math.max(0, Math.round(score));
     return score;
 }
@@ -38,8 +79,6 @@ function assign_score(current_ms, finish_time, difficulty) {
     var difficulty_multiplier = get_difficulty_multiplier(difficulty);
     var init_score = get_upscore(finish_time);
     var return_score = get_downscore(finish_time, current_ms);
-    console.log('init: ' + init_score);
-    console.log('return: ' + return_score);
 
     return difficulty_multiplier * (init_score + return_score);
 }
@@ -111,9 +150,7 @@ var Game = function(difficulty) {
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
 
-        setTimeout(function() {
-            alert("Victory! Your score: " + score);
-        }, 20);
+        display_message("Victory! Your score: " + score);
     }
 
     this.out_of_time = function() {
@@ -131,9 +168,7 @@ var Game = function(difficulty) {
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
 
-        setTimeout(function() {
-            alert("Time's up! Thanks for playing!");
-        }, 20);
+        display_message("Time's up! Thanks for playing! Your score: " + score);
     }
 
     // Counts down from the time when the person clicks on the end point.
@@ -331,6 +366,10 @@ var Game = function(difficulty) {
             $('.drawn_point').remove();
             $('line').remove();
             draw_visibility();
+
+            if (point_dist(self.player.point, self.maze.end) < 20) {
+                self.done_with_maze();
+            }
         }
     };
     var onunclick = function(e) {

@@ -36,10 +36,12 @@ var Maze = function(points) {
         }
     }
     this.reveal = function() {
-        //self.polygon.draw();
+        self.polygon.draw();
+        /*
         self.polygon.edges.forEach(function(edge) {
             edge.draw('white');
-        })
+        });
+        */
         $('#end').show();
     }
 }

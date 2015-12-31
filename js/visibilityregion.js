@@ -671,9 +671,19 @@ function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY,
     return result;
 };
 
+function display_intro_message() {
+    display_message("Game starting in 3 seconds...", 1000);
+    setTimeout(function() {
+        display_message("Game starting in 2 seconds...", 1000);
+        setTimeout(function() {
+            display_message("Game starting in 1 second...", 1000);
+        }, 1000);
+    }, 1000);
+}
 
 var game = null;
 function main(difficulty) {
+    display_message("To start, select a difficulty above. Then, control the game with your mouse.");
     $('#playagain').hide();
     switch (difficulty) {
         case "easy": 
@@ -685,7 +695,8 @@ function main(difficulty) {
             $('circle').hide();
             return;
     }
-    game.play();
+    display_intro_message();
+    setTimeout(game.play, 3000);
 }
 
 $("#difficulty").change(function() {

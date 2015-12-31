@@ -52,8 +52,13 @@
     <svg width="1024" height="768">
       <polygon class="maze" id="maze"/>
       <polygon class="visibility clickable" id="visibility"/>
-      <circle r="5" id="player" class="player clickable"/>
       <circle r="10" id="end" class="endpoint"/>
+      <circle r="5" id="player" class="player clickable"/>
+
+      <rect id="messagebox"/>
+      <text id="messageparent">
+          <tspan x="0" text-anchor="middle" id="svgmessage" class="svgmessage"></tspan>
+      </text>
     </svg>
     <button id="playagain" style="display: none;">Play again?</button>
 </div>
@@ -160,7 +165,7 @@
             backtrack when we return from the polygon's edges with an edge facing CCW with respect to the player. However,
             if the polygon first loops back around CW and <i>then</i> comes back in a CCW direction, as denoted here,
             <div>
-                <img src="http://i.imgur.com/xOPSpU7.png"/>
+                <img src="https://i.imgur.com/xOPSpU7.png"/>
             </div>
             then this edge is invisible to the player. To solve this, I just created a stack that I pushed
             CW-faced edges on (represented by the grey CW facing edge that intersects with the orange visibility ray), and
