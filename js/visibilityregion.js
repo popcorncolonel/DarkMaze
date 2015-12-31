@@ -693,11 +693,13 @@ function main(difficulty) {
             game = new Game(difficulty);
             break;
         default:
-            $('circle').hide();
-            return;
+            //$('circle').hide();
+            //return;
+            game = new Game();
     }
     display_intro_message();
     setTimeout(game.play, 3000);
+    game.maze.reveal();
 }
 
 $("#difficulty").change(function() {
