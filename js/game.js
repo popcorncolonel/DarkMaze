@@ -47,7 +47,8 @@ function hide_message() {
 }
 
 function display_message(message, duration) {
-    $('#svgmessage').html(message);
+    document.getElementById('messageparent').innerHTML = message;
+    //$('#svgmessage').html(message);
     adjust_message_size();
     show_message();
     if (duration && duration > 0) {
@@ -133,7 +134,7 @@ var Game = function(difficulty) {
         default:
             $('circle').hide();
             return;
-            //maze_config = medium_mazes[0];
+            //maze_config = hard_mazes[0];
     }
 
     // Counts up. done with the person clicks on the end point.
@@ -165,7 +166,7 @@ var Game = function(difficulty) {
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
 
-        display_message("Victory! Your score: " + score + ". Click here to play again.");
+        display_message("Victory! Your score: " + score + ". Click here to play a new level.");
         bind_click_to_message(function () {
             unbind_message();
             start_game();
@@ -186,7 +187,7 @@ var Game = function(difficulty) {
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
 
-        display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to play again.");
+        display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to play another level.");
         bind_click_to_message(function() {
             unbind_message();
             start_game();
