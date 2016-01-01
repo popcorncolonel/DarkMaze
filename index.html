@@ -45,21 +45,31 @@
     <div>
         <span class="left">
             Timer: <span id="timer">00:00.00</span>
-            <div id="upscore_parent" style="display:none;">
-                Points (exploring the maze): <span id="upscore">0</span>
+            <br>
+            <div id="uptime_parent" style="display:block;">
+                Time (exploring the maze): <span id="uptime">--</span>
             </div>
-            <div id="downscore_parent" style="display:none;">
-                Points (returning home): <span id="downscore">0</span>
+            <div id="upscore_parent" style="display:block;">
+                Points (exploring the maze): <span id="upscore">--</span>
             </div>
-            <div id="total_score" style="display:none;">
+            <br>
+            <div id="downtime_parent" style="display:block;">
+                Time (returning home): <span id="downtime">--</span>
+            </div>
+            <div id="downscore_parent" style="display:block;">
+                Points (returning home): <span id="downscore">--</span>
+            </div>
+            <br>
+            <div id="total_score" style="display:block;">
+                Total score: --
             </div>
         </span>
         <span class="right">
             High score: <span id="highscore">0</span>
-            <div id="up_highscore_parent" style="display:none;">
+            <div id="up_highscore_parent">
                 Fastest time to the end: <span id="up_highscore">00:00.00</span>
             </div>
-            <div id="down_highscore_parent" style="display:none;">
+            <div id="down_highscore_parent">
                 Fastest time back to the start: <span id="down_highscore">00:00.00</span>
             </div>
         </span>

@@ -694,27 +694,26 @@ function main(difficulty) {
             break;
         default:
             $('circle').hide();
+            update_highscore();
             return;
-            game = new Game();
     }
     display_intro_message();
     setTimeout(game.play, 3000);
 }
 
-$("#difficulty").change(function() {
+function start_new_game() {
     if (game) {
+        game.reset_counters();
         game.end_game();
     }
     var difficulty = $("#difficulty").val();
     main(difficulty);
-});
+}
+
+$("#difficulty").change(start_new_game);
 
 function start_game() {
-    if (game) {
-        game.end_game();
-    }
-    var difficulty = $("#difficulty").val();
-    main(difficulty);
+    start_new_game();
 }
 
 main();

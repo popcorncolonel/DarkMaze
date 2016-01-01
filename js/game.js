@@ -157,22 +157,17 @@ var Game = function(difficulty) {
     // Counts up. done with the person clicks on the end point.
     this.start_up_timer = function() {
         $("#upscore_parent").show();
-        $("#up_highscore_parent").show();
+        $("#uptime_parent").show();
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         self.timer = setInterval(function () {
             self.ms++;
             $("#timer").html(get_timestring(self.ms));
             $("#upscore").html(difficulty_multiplier * get_upscore(self.ms));
+            $("#uptime").html(get_timestring(self.ms));
         }, 10);
     }
 
-    this.update_highscore = function() {
-        var highscores = get_highscore();
-        $('#highscore').html(highscores.highest_score);
-        $('#up_highscore').html(get_timestring(parseInt(highscores.fastest_up)));
-        $('#down_highscore').html(get_timestring(parseInt(highscores.fastest_down)));
-    }
-    this.update_highscore();
+    update_highscore();
 
     this.set_highscore = function(score, uptime, downtime) {
         set_highscore(score, uptime, downtime);
@@ -193,7 +188,7 @@ var Game = function(difficulty) {
         self.maze.reveal();
 
         self.set_highscore(score, self.finish_time, self.finish_time - self.ms);
-        self.update_highscore();
+        update_highscore();
 
         display_message("Victory! Your score: " + score + ". Click here to play a new level.");
         bind_click_to_message(function () {
@@ -218,7 +213,7 @@ var Game = function(difficulty) {
 
         // They never made it back to the start -> downtime = positive infinity.
         self.set_highscore(score, self.finish_time, Number.POSITIVE_INFINITY);
-        self.update_highscore();
+        update_highscore();
 
         display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to play another level.");
         bind_click_to_message(function() {
@@ -233,7 +228,7 @@ var Game = function(difficulty) {
     this.start_down_timer = function() {
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#downscore_parent").show();
-        $("#down_highscore_parent").show();
+        $("#downtime_parent").show();
         self.down_timer = setInterval(function () {
             if (Math.random() < 0.5) { // 1.5x slower
                 self.ms--;
@@ -246,6 +241,7 @@ var Game = function(difficulty) {
             }
             $("#timer").html(get_timestring(self.ms));
             $("#downscore").html(difficulty_multiplier * get_downscore(self.finish_time, self.ms));
+            $("#downtime").html(get_timestring(self.finish_time - self.ms));
         }, 10);
     }
 
@@ -430,17 +426,25 @@ var Game = function(difficulty) {
         }
     }
 
-    this.play = function() {
-        $('#downscore_parent').hide();
-        $('#total_score').hide();
+    this.reset_counters = function() {
+        $('#timer').css('color', 'white');
+        $('#timer').html(get_timestring(0));
 
+        $('#uptime').html('--');
+        $('#upscore').html('--');
+        $('#downtime').html('--');
+        $('#downscore').html('--');
+        $('#total_score').html('Total score: --');
+    }
+
+    this.play = function() {
+        self.reset_counters();
         self.player.move_to(self.maze.start.x, self.maze.start.y);
         self.player.draw();
         
         draw_visibility();
 
         $('.clickable').attr('style', 'cursor: click;');
-        $('#timer').css('color', 'white');
         dragging = false;
         $('svg').mousedown(onclick)
                 .mousemove(ondrag);

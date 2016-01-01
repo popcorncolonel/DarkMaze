@@ -48,3 +48,10 @@ function set_highscore(score, uptime, downtime) {
     }
 }
 
+function update_highscore() {
+    var highscores = get_highscore();
+    $('#highscore').html(highscores.highest_score);
+    $('#up_highscore').html(get_timestring(parseInt(highscores.fastest_up)));
+    $('#down_highscore').html(get_timestring(parseInt(highscores.fastest_down)));
+}
+
