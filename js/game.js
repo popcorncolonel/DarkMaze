@@ -132,6 +132,8 @@ var Game = function(difficulty) {
     this.ms = 0;
     this.down_timer = null;
     this.finish_time = null;
+    this.pointlist_up = [];
+    this.pointlist_down = [];
 
     var maze_config;
     var self = this;
@@ -169,6 +171,28 @@ var Game = function(difficulty) {
 
     update_highscore();
 
+    this.draw_trace = function() {
+        var prev_point = self.maze.start;
+        self.pointlist_up.forEach(function(point) {
+            var edge = new Edge(prev_point, point);
+            edge.draw('lightgreen');
+            prev_point = point;
+        });
+        self.pointlist_down.forEach(function(point) {
+            var edge = new Edge(prev_point, point);
+            edge.draw('pink');
+            prev_point = point;
+        });
+    }
+
+    this.reveal_map = function(visibility_color) {
+        $('#timer').css('color', visibility_color);
+        $('#visibility').css('fill', visibility_color);
+        $('#player').css('fill', 'blue');
+        self.maze.reveal();
+        self.draw_trace();
+    }
+
     this.set_highscore = function(score, uptime, downtime) {
         set_highscore(score, uptime, downtime);
     }
@@ -179,14 +203,11 @@ var Game = function(difficulty) {
         var score = assign_score(self.ms, self.finish_time, self.difficulty);
         unbind_svg();
         unbind_body();
-        $('#timer').css('color', 'green');
-        $('#visibility').css('fill', 'green');
-        $('#player').css('fill', 'blue');
         clearInterval(self.down_timer);
         $('#total_score').show();
-        $('#total_score').html('Total score: ' + score);
-        self.maze.reveal();
+        $('#total_score').html(score);
 
+        self.reveal_map('green');
         self.set_highscore(score, self.finish_time, self.finish_time - self.ms);
         update_highscore();
 
@@ -206,11 +227,10 @@ var Game = function(difficulty) {
         $('svg').unbind('mousedown');
         $('svg').unbind('mousemove');
         $('#end').unbind();
-        $('#visibility').css('fill', 'red');
         $('#total_score').show();
-        $('#total_score').html('Total score: ' + score);
-        self.maze.reveal();
+        $('#total_score').html(score);
 
+        self.reveal_map('red');
         // They never made it back to the start -> downtime = positive infinity.
         self.set_highscore(score, self.finish_time, Number.POSITIVE_INFINITY);
         update_highscore();
@@ -411,6 +431,12 @@ var Game = function(difficulty) {
             $('#end').hide()
             $('.drawn_point').remove();
             $('line').remove();
+            if (self.player.countdown) {
+                self.pointlist_down.push(self.player.point);
+            }
+            else {
+                self.pointlist_up.push(self.player.point);
+            }
             draw_visibility();
 
             if (point_dist(self.player.point, self.maze.end) < 20) {
@@ -434,7 +460,7 @@ var Game = function(difficulty) {
         $('#upscore').html('--');
         $('#downtime').html('--');
         $('#downscore').html('--');
-        $('#total_score').html('Total score: --');
+        $('#total_score').html('--');
     }
 
     this.play = function() {
