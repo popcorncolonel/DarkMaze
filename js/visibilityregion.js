@@ -695,7 +695,7 @@ function main(difficulty) {
         default:
             $('circle').hide();
             return;
-            //game = new Game();
+            game = new Game();
     }
     display_intro_message();
     setTimeout(game.play, 3000);

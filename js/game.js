@@ -12,6 +12,10 @@ function adjust_message_size() {
     var message_width = $('#messageparent').width();
     var message_height = $('#messageparent').height();
 
+    if (message_width == 0) {
+        message_width = 1024;
+    }
+
     $('#messagebox').attr('width', message_width + 60);
     $('#messagebox').attr('height', message_height / 2 + 60);
     $('#messagebox').attr('x', middle_of_svg.x - (message_width / 2 + 30));
@@ -47,7 +51,8 @@ function hide_message() {
 }
 
 function display_message(message, duration) {
-    document.getElementById('messageparent').innerHTML = message;
+    //document.getElementById('messageparent').innerHTML = message;
+    document.getElementById('messageparent').textContent = message;
     //$('#svgmessage').html(message);
     adjust_message_size();
     show_message();
