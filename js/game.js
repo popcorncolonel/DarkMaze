@@ -61,6 +61,18 @@ function display_message(message, duration) {
     }
 }
 
+function pad(val) {
+    return val > 9 ? val : "0" + val;
+}
+
+// Given 105, returns "00:01.05"
+function get_timestring(ms) {
+    var millis = pad(Math.floor((ms % 100)));
+    var seconds = pad(Math.floor(ms / 100) % 60);
+    var minutes = pad(Math.floor(ms / (60 * 100)));
+    return minutes + ":" + seconds + "." + millis;
+}
+
 // When the timer is going up.
 function get_upscore(ms) {
     var score = 300 + 10000 / Math.sqrt(ms); // Finishing faster = more points. Constant 300 + for happiness factor.
@@ -144,17 +156,26 @@ var Game = function(difficulty) {
 
     // Counts up. done with the person clicks on the end point.
     this.start_up_timer = function() {
-        function pad(val) {
-            return val > 9 ? val : "0" + val;
-        }
         $("#upscore_parent").show();
+        $("#up_highscore_parent").show();
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         self.timer = setInterval(function () {
-            document.getElementById("ms").innerHTML = pad(Math.floor(((++self.ms) % 100)));
-            document.getElementById("seconds").innerHTML = pad(Math.floor(self.ms / 100) % 60);
-            document.getElementById("minutes").innerHTML = pad(Math.floor(self.ms / (60 * 100)));
+            self.ms++;
+            $("#timer").html(get_timestring(self.ms));
             $("#upscore").html(difficulty_multiplier * get_upscore(self.ms));
         }, 10);
+    }
+
+    this.update_highscore = function() {
+        var highscores = get_highscore();
+        $('#highscore').html(highscores.highest_score);
+        $('#up_highscore').html(get_timestring(parseInt(highscores.fastest_up)));
+        $('#down_highscore').html(get_timestring(parseInt(highscores.fastest_down)));
+    }
+    this.update_highscore();
+
+    this.set_highscore = function(score, uptime, downtime) {
+        set_highscore(score, uptime, downtime);
     }
 
     this.victory = function() {
@@ -170,6 +191,9 @@ var Game = function(difficulty) {
         $('#total_score').show();
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
+
+        self.set_highscore(score, self.finish_time, self.finish_time - self.ms);
+        self.update_highscore();
 
         display_message("Victory! Your score: " + score + ". Click here to play a new level.");
         bind_click_to_message(function () {
@@ -192,6 +216,10 @@ var Game = function(difficulty) {
         $('#total_score').html('Total score: ' + score);
         self.maze.reveal();
 
+        // They never made it back to the start -> downtime = positive infinity.
+        self.set_highscore(score, self.finish_time, Number.POSITIVE_INFINITY);
+        self.update_highscore();
+
         display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to play another level.");
         bind_click_to_message(function() {
             unbind_message();
@@ -203,23 +231,20 @@ var Game = function(difficulty) {
     // However, the downwards timer is 1.5x faster than the upwards timer, so
     // the player has to get back faster.
     this.start_down_timer = function() {
-        function pad(val) {
-            return val > 9 ? val : "0" + val;
-        }
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#downscore_parent").show();
+        $("#down_highscore_parent").show();
         self.down_timer = setInterval(function () {
             if (Math.random() < 0.5) { // 1.5x slower
                 self.ms--;
             }
+            self.ms--;
             if (self.ms <= 0) {
                 self.out_of_time();
-                self.ms = 1;
+                self.ms = 0;
                 clearInterval(self.down_timer);
             }
-            document.getElementById("ms").innerHTML = pad(Math.floor(((--self.ms) % 100)));
-            document.getElementById("seconds").innerHTML = pad(Math.floor(self.ms / 100) % 60);
-            document.getElementById("minutes").innerHTML = pad(Math.floor(self.ms / (60 * 100)));
+            $("#timer").html(get_timestring(self.ms));
             $("#downscore").html(difficulty_multiplier * get_downscore(self.finish_time, self.ms));
         }, 10);
     }
@@ -231,7 +256,7 @@ var Game = function(difficulty) {
             self.player.countdown = true;
             clearInterval(self.timer);
             self.finish_time = self.ms;
-            self.start_down_timer(ms);
+            self.start_down_timer(self.ms);
             $('#timer').css('color', 'red');
             self.player.move_to(self.maze.end.x, self.maze.end.y);
             self.player.draw();

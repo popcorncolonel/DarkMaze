@@ -43,15 +43,26 @@
 
 <div class="container">
     <div>
-        Timer: <span id="timer"><span id="minutes">00</span>:<span id="seconds">00</span>.<span id="ms">00</span></span>
-        <div id="upscore_parent" style="display:none;">
-            Points (exploring the maze): <span id="upscore">0</span>
-        </div>
-        <div id="downscore_parent" style="display:none;">
-            Points (returning home): <span id="downscore">0</span>
-        </div>
-        <div id="total_score" style="display:none;">
-        </div>
+        <span class="left">
+            Timer: <span id="timer">00:00.00</span>
+            <div id="upscore_parent" style="display:none;">
+                Points (exploring the maze): <span id="upscore">0</span>
+            </div>
+            <div id="downscore_parent" style="display:none;">
+                Points (returning home): <span id="downscore">0</span>
+            </div>
+            <div id="total_score" style="display:none;">
+            </div>
+        </span>
+        <span class="right">
+            High score: <span id="highscore">0</span>
+            <div id="up_highscore_parent" style="display:none;">
+                Fastest time to the end: <span id="up_highscore">00:00.00</span>
+            </div>
+            <div id="down_highscore_parent" style="display:none;">
+                Fastest time back to the start: <span id="down_highscore">00:00.00</span>
+            </div>
+        </span>
     </div>
     <svg width="1024" height="768">
       <polygon class="maze" id="maze"/>
@@ -192,6 +203,7 @@
 </body>
 
 <script src="js/innerhtml.js"></script>
+<script src="js/highscore.js"></script>
 <script src="js/polygon.js"></script>
 <script src="js/config.js"></script>
 <script src="js/game.js"></script>
