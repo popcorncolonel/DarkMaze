@@ -197,49 +197,57 @@ var Game = function(difficulty) {
         set_highscore(score, uptime, downtime);
     }
 
-    this.victory = function() {
+    this.on_done_game = function() {
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
         var score = assign_score(self.ms, self.finish_time, self.difficulty);
         unbind_svg();
         unbind_body();
-        clearInterval(self.down_timer);
-        $('#total_score').show();
+
         $('#total_score').html(score);
+
+        var n_mazes_left = get_mazes_left() - 1;
+        set_mazes_left(n_mazes_left); 
+
+        update_highscore();
+        if (n_mazes_left > 0) {
+            bind_click_to_message(function() {
+                unbind_message();
+                start_game();
+            });
+        }
+    }
+
+    this.victory = function() {
+        var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
+        $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
+        var score = assign_score(self.ms, self.finish_time, self.difficulty);
+        clearInterval(self.down_timer);
 
         self.reveal_map('green');
         self.set_highscore(score, self.finish_time, self.finish_time - self.ms);
-        update_highscore();
+        self.on_done_game();
 
-        display_message("Victory! Your score: " + score + ". Click here to play a new level.");
-        bind_click_to_message(function () {
-            unbind_message();
-            start_game();
-        });
+        if (get_mazes_left() > 0) {
+            display_message("Victory! Your score: " + score + ". Click here to play a new level.");
+        } else {
+            display_message("Victory! Your total score: " + score + ". Thanks for playing!");
+        }
     }
 
     this.out_of_time = function() {
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
         var score = assign_score(self.ms, self.finish_time, self.difficulty);
-        unbind_svg();
-        unbind_body();
-        $('svg').unbind('mousedown');
-        $('svg').unbind('mousemove');
         $('#end').unbind();
-        $('#total_score').show();
-        $('#total_score').html(score);
 
         self.reveal_map('red');
         // They never made it back to the start -> downtime = positive infinity.
         self.set_highscore(score, self.finish_time, Number.POSITIVE_INFINITY);
-        update_highscore();
+        set_mazes_left(0); // lost the game - don't continue
+        self.on_done_game();
 
-        display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to play another level.");
-        bind_click_to_message(function() {
-            unbind_message();
-            start_game();
-        });
+        display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to start over.");
     }
 
     // Counts down from the time when the person clicks on the end point.

@@ -681,6 +681,15 @@ function display_intro_message() {
     }, 1000);
 }
 
+function get_mazes_left() {
+    var n_mazes_left = $('#mazes_left').html();
+    return parseInt(n_mazes_left);
+}
+
+function set_mazes_left(num) {
+    $('#mazes_left').html(num);
+}
+
 var game = null;
 function main(difficulty) {
     display_message("To start, select a difficulty above. Then, control the game with your mouse.");
@@ -701,7 +710,7 @@ function main(difficulty) {
     setTimeout(game.play, 3000);
 }
 
-function start_new_game() {
+function start_game() {
     if (game) {
         game.reset_counters();
         game.end_game();
@@ -710,11 +719,10 @@ function start_new_game() {
     main(difficulty);
 }
 
-$("#difficulty").change(start_new_game);
-
-function start_game() {
-    start_new_game();
-}
+$("#difficulty").change(function() {
+    $('#mazes_left').html(3);
+    start_game();
+});
 
 main();
 
