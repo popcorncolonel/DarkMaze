@@ -699,7 +699,12 @@ function main(difficulty) {
         case "easy": 
         case "medium": 
         case "hard": 
-            game = new Game(difficulty);
+            var init_score = parseInt($('#total_score').html());
+            if (init_score == NaN) {
+                game = new Game(difficulty);
+            } else {
+                game = new Game(difficulty, init_score);
+            }
             break;
         default:
             $('circle').hide();
@@ -707,7 +712,11 @@ function main(difficulty) {
             return;
     }
     display_intro_message();
+    $('#difficulty').attr('disabled', true);
     setTimeout(game.play, 3000);
+    setTimeout(function() {
+        $('#difficulty').attr('disabled', false);
+    }, 3000);
 }
 
 function start_game() {
@@ -720,7 +729,7 @@ function start_game() {
 }
 
 $("#difficulty").change(function() {
-    $('#mazes_left').html(3);
+    set_mazes_left(3);
     start_game();
 });
 

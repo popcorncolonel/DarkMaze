@@ -17,7 +17,7 @@ function adjust_message_size() {
     }
 
     $('#messagebox').attr('width', message_width + 60);
-    $('#messagebox').attr('height', message_height / 2 + 60);
+    $('#messagebox').attr('height', message_height + 60);
     $('#messagebox').attr('x', middle_of_svg.x - (message_width / 2 + 30));
     $('#messagebox').attr('y', middle_of_svg.y - (message_height / 2 + 30));
 }
@@ -50,10 +50,10 @@ function hide_message() {
     $('#messagebox').hide();
 }
 
-function display_message(message, duration) {
-    //document.getElementById('messageparent').innerHTML = message;
-    document.getElementById('messageparent').textContent = message;
-    //$('#svgmessage').html(message);
+// second and third lines are optional
+function display_message(message, duration, second_line) {
+    document.getElementById('firstline').textContent = message;
+    document.getElementById('secondline').textContent = second_line;
     adjust_message_size();
     show_message();
     if (duration && duration > 0) {
@@ -109,12 +109,14 @@ function get_difficulty_multiplier(difficulty) {
 // finish_time is the time they found the actual end of the maze (in centiseconds)
 //      current_ms will be less than finish_time, because the timer counts down.
 // 0 < current_ms < finish_time
-function assign_score(current_ms, finish_time, difficulty) {
+// init_score is a score to add onto
+function assign_score(current_ms, finish_time, difficulty, init_score) {
+    init_score = init_score || 0;
     var difficulty_multiplier = get_difficulty_multiplier(difficulty);
-    var init_score = get_upscore(finish_time);
+    var up_score = get_upscore(finish_time);
     var return_score = get_downscore(finish_time, current_ms);
 
-    return difficulty_multiplier * (init_score + return_score);
+    return difficulty_multiplier * (up_score + return_score) + init_score;
 }
 
 function unbind_svg() {
@@ -128,12 +130,13 @@ function unbind_body() {
     $('body').unbind();
 }
 
-var Game = function(difficulty) {
+var Game = function(difficulty, init_score) {
     this.ms = 0;
     this.down_timer = null;
     this.finish_time = null;
     this.pointlist_up = [];
     this.pointlist_down = [];
+    this.init_score = init_score || 0;
 
     var maze_config;
     var self = this;
@@ -200,15 +203,20 @@ var Game = function(difficulty) {
     this.on_done_game = function() {
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
-        var score = assign_score(self.ms, self.finish_time, self.difficulty);
+        var score = assign_score(self.ms, self.finish_time, self.difficulty, self.init_score);
         unbind_svg();
         unbind_body();
 
         $('#total_score').html(score);
 
         var n_mazes_left = get_mazes_left() - 1;
-        set_mazes_left(n_mazes_left); 
+        if (n_mazes_left >= 0) {
+            set_mazes_left(n_mazes_left); 
+        } else {
+            set_mazes_left(0); 
+        }
 
+        self.set_highscore(0, self.finish_time, self.finish_time - self.ms);
         update_highscore();
         if (n_mazes_left > 0) {
             bind_click_to_message(function() {
@@ -221,33 +229,46 @@ var Game = function(difficulty) {
     this.victory = function() {
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
-        var score = assign_score(self.ms, self.finish_time, self.difficulty);
+        var score_this_round = assign_score(self.ms, self.finish_time, self.difficulty);
         clearInterval(self.down_timer);
 
         self.reveal_map('green');
-        self.set_highscore(score, self.finish_time, self.finish_time - self.ms);
-        self.on_done_game();
 
-        if (get_mazes_left() > 0) {
-            display_message("Victory! Your score: " + score + ". Click here to play a new level.");
+        if (get_mazes_left() > 1) {
+            display_message("Victory! Score this round: " + score_this_round + ".", -1, "Click here to play the next level.");
         } else {
-            display_message("Victory! Your total score: " + score + ". Thanks for playing!");
+            var score = assign_score(self.ms, self.finish_time, self.difficulty, self.init_score);
+            display_message("Victory! Your total score: " + score + ". Thanks for playing!", -1,
+                            "Refresh the page or choose a new difficulty to play again.");
+            self.set_highscore(score);
+            update_highscore();
         }
+        self.on_done_game();
     }
 
     this.out_of_time = function() {
+        if (self.end_in_sight) {
+            self.victory();
+            return;
+        }
         var difficulty_multiplier = get_difficulty_multiplier(self.difficulty);
         $("#upscore").html(difficulty_multiplier * get_upscore(self.finish_time));
-        var score = assign_score(self.ms, self.finish_time, self.difficulty);
+        var score = assign_score(self.ms, self.finish_time, self.difficulty, self.init_score);
         $('#end').unbind();
 
         self.reveal_map('red');
         // They never made it back to the start -> downtime = positive infinity.
-        self.set_highscore(score, self.finish_time, Number.POSITIVE_INFINITY);
+        //self.set_highscore(score, self.finish_time, Number.POSITIVE_INFINITY);
         set_mazes_left(0); // lost the game - don't continue
-        self.on_done_game();
 
-        display_message("Time's up! Thanks for playing! Your score: " + score + ". Click here to start over.");
+        display_message("Time's up! Thanks for playing! Your score: " + score + ".", -1, "Click here to start over.");
+        self.on_done_game();
+        bind_click_to_message(function() {
+            $('#total_score').html('--');
+            unbind_message();
+            set_mazes_left(3);
+            start_game();
+        });
     }
 
     // Counts down from the time when the person clicks on the end point.
@@ -468,7 +489,7 @@ var Game = function(difficulty) {
         $('#upscore').html('--');
         $('#downtime').html('--');
         $('#downscore').html('--');
-        $('#total_score').html('--');
+        //$('#total_score').html('--');
     }
 
     this.play = function() {

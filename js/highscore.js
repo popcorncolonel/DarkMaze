@@ -1,3 +1,9 @@
+var MazeResult = function(score, uptime, downtime) {
+    this.score = score;
+    this.uptime = uptime;
+    this.downtime = downtime;
+};
+
 function storageAvailable() {
 	try {
 		var x = '__storage_test__';
@@ -16,11 +22,7 @@ function get_highscore() {
         var highest_score = localStorage['highest_score'] || 0; // measured in points
         var fastest_up = localStorage['fastest_up'] || 0; // measured in ms
         var fastest_down = localStorage['fastest_down'] || 0; // measured in ms
-        return {
-            highest_score: highest_score,
-            fastest_up: fastest_up,
-            fastest_down: fastest_down,
-        }
+        return new MazeResult(highest_score, fastest_up, fastest_down);
     }
     else {
         alert('Local storage not enabled on your browser.\nCannot set high score.');
@@ -33,25 +35,37 @@ function set_highscore(score, uptime, downtime) {
     var fastest_up = localStorage['fastest_up'] || 0; // measured in ms
     var fastest_down = localStorage['fastest_down'] || 0; // measured in ms
 
-    if (score > highest_score) {
-        localStorage['highest_score'] = score;
-    }
-    if (fastest_up == 0 || uptime < fastest_up) {
-        if (uptime != Number.POSITIVE_INFINITY) {
-            localStorage['fastest_up'] = uptime;
+    if (score) {
+        if (score > highest_score) {
+            localStorage['highest_score'] = score;
         }
     }
-    if (fastest_down == 0 || downtime < fastest_down) {
-        if (downtime != Number.POSITIVE_INFINITY) {
-            localStorage['fastest_down'] = downtime;
+    if (uptime) {
+        if (fastest_up == 0 || uptime < fastest_up) {
+            if (uptime != Number.POSITIVE_INFINITY) {
+                localStorage['fastest_up'] = uptime;
+            }
+        }
+    }
+    if (downtime) {
+        if (fastest_down == 0 || downtime < fastest_down) {
+            if (downtime != Number.POSITIVE_INFINITY) {
+                localStorage['fastest_down'] = downtime;
+            }
         }
     }
 }
 
 function update_highscore() {
     var highscores = get_highscore();
-    $('#highscore').html(highscores.highest_score);
-    $('#up_highscore').html(get_timestring(parseInt(highscores.fastest_up)));
-    $('#down_highscore').html(get_timestring(parseInt(highscores.fastest_down)));
+    $('#highscore').html(highscores.score);
+    $('#up_highscore').html(get_timestring(parseInt(highscores.uptime)));
+    $('#down_highscore').html(get_timestring(parseInt(highscores.downtime)));
 }
 
+$('#reset_scores').click(function() {
+    localStorage.removeItem('highest_score');
+    localStorage.removeItem('fastest_up');
+    localStorage.removeItem('fastest_down');
+    update_highscore();
+});

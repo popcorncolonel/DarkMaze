@@ -1,9 +1,9 @@
 
 var MazeConfig = function(pointlist, start, end) {
     this.pointlist = pointlist;
-    this.start = start;
-    this.end = end;
-    var xscale = 1.2;
+    this.start = {x:start.x / 1.2, y:start.y};
+    this.end = {x:end.x / 1.2, y:end.y};
+    var xscale = 1;
     var yscale = 1.5;
     this.pointlist = this.pointlist.map(function(point) {
         return [point[0] * xscale, point[1] * yscale];
