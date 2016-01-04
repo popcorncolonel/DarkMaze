@@ -730,6 +730,7 @@ function start_game() {
 
 $("#difficulty").change(function() {
     set_mazes_left(3);
+    $('#total_score').html('--');
     start_game();
 });
 
